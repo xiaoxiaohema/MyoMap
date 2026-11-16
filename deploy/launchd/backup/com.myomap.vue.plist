@@ -8,14 +8,14 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/node</string>
-        <string>/Users/xiaohema/Desktop/vue/node_modules/vite/bin/vite.js</string>
+        <string>/path/to/myoapp/node_modules/vite/bin/vite.js</string>
         <string>--port</string>
         <string>5173</string>
         <string>--strictPort</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/xiaohema/Desktop/vue</string>
+    <string>/path/to/myoapp</string>
 
     <key>RunAtLoad</key>
     <true/>

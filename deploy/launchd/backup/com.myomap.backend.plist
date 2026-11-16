@@ -7,15 +7,15 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/xiaohema/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home/bin/java</string>
+        <string>/path/to/jdk17/bin/java</string>
         <string>-Xms128m</string>
         <string>-Xmx512m</string>
         <string>-jar</string>
-        <string>/Users/xiaohema/Desktop/MyoMap/backend/target/myomap-backend-1.0.0.jar</string>
+        <string>/path/to/MyoMap/backend/target/myomap-backend-1.0.0.jar</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/xiaohema/Desktop/MyoMap/backend</string>
+    <string>/path/to/MyoMap/backend</string>
 
     <key>RunAtLoad</key>
     <true/>

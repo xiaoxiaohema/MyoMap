@@ -14,7 +14,7 @@
         <string>0.0.0.0</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/xiaohema/Desktop/MyoMap</string>
+    <string>/path/to/MyoMap</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
