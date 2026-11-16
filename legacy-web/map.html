@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 地图行程</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  #amap { width: 100%; height: 440px; border-radius: 14px; overflow: hidden; background: var(--viewer-bg); border: 1px solid var(--border); }
+  .map-canvas { width: 100%; border-radius: 14px; background: var(--viewer-bg); border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .map-grid line { stroke: var(--surface-1); }
+  .facility { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); }
+  .facility + .facility { margin-top: 8px; }
+  .facility .f-ico { width: 36px; height: 36px; border-radius: 10px; background: rgba(58,155,255,0.14); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .live-dot { fill: #ff6b35; filter: drop-shadow(0 0 6px rgba(255,107,53,0.9)); }
+  /* 高德信息窗 */
+  .amap-info-content { color: #111; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div class="grid two-col" style="grid-template-columns:minmax(0,1fr) minmax(300px,360px);align-items:start;">
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="map"></i></span> 路线规划
+              <span class="ct-sub" id="map-status">正在加载地图…</span>
+            </div>
+            <div class="grid grid-4" style="margin-bottom:14px;">
+              <div class="field" style="margin:0;"><label class="label">运动类型</label><div class="chip-group" id="opt-sport"></div></div>
+              <div class="field" style="margin:0;"><label class="label">目标方式</label><div class="chip-group" id="opt-mode"></div></div>
+              <div class="field" style="margin:0;"><label class="label">目标值</label><input class="input" type="number" id="target-val" value="5"></div>
+              <div class="field" style="margin:0;"><label class="label">&nbsp;</label><button class="btn btn-primary btn-block" id="btn-route">生成路线</button></div>
+            </div>
+
+            <!-- 高德地图 -->
+            <div id="amap"></div>
+
+            <!-- 离线降级：模拟引擎 -->
+            <div id="map-fallback" class="map-canvas hidden">
+              <svg id="map-svg" viewBox="0 0 800 480" style="width:100%;display:block;">
+                <g class="map-grid" id="map-grid"></g>
+                <path id="route-path" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path id="route-done" fill="none" stroke="#ff6b35" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle id="live-dot" class="live-dot" r="8" cx="0" cy="0" opacity="0"/>
+                <circle id="start-dot" r="7" fill="#2ecc71"/>
+                <circle id="end-dot" r="7" fill="#ff5470"/>
+              </svg>
+            </div>
+
+            <div class="grid grid-4" style="margin-top:14px;" id="route-stats"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="signal"></i></span> 轨迹记录
+              <span class="ct-sub" id="rec-status">GPS 实时记录</span>
+            </div>
+            <div class="grid grid-4" id="live-stats"></div>
+            <div class="flex gap-8" style="margin-top:16px;">
+              <button class="btn btn-primary" id="btn-record">▶ 开始记录</button>
+              <button class="btn btn-ghost" id="btn-stop" disabled><i class="ic" data-ic="stop" data-ic-size="14"></i> 结束并保存</button>
+              <span class="mute" style="margin-left:auto;font-size:12px;align-self:center;" id="rec-hint">配速按运动类型估算</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="mapPin"></i></span> 周边设施
+            <span class="ct-sub" id="fac-status"></span>
+          </div>
+          <div id="facilities"><div class="mute" style="font-size:12.5px;padding:8px 0;">正在获取…</div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script>
+Common.shell({ active: 'map', title: '地图行程规划', subtitle: '高德地图 · 路线规划 · 轨迹记录 · 周边设施' });
+
+/* ============================================================
+   高德地图配置
+   ------------------------------------------------------------
+   key: 高德 Web 端(JS API) Key
+   注意：JS API Key 会暴露在前端，属于正常用法；
+        若为 2021-12-02 之后创建的 Key，还需配置安全密钥 securityJsCode。
+   ============================================================ */
+const AMAP_KEY = 'bffd9eb4ede72606b32e3c26996cc29c';
+const AMAP_SECURITY = '9c91a6cc07be4bfaeb06d8a148b1bf71'; // 安全密钥（securityJsCode）
+
+const SPORTS = {
+  '跑步': { speed: 10, met: 9.8, route: 'walking' },
+  '骑行': { speed: 20, met: 7.5, route: 'riding' },
+  '徒步': { speed: 4.5, met: 5.5, route: 'walking' }
+};
+const DEFAULT_CENTER = [116.397428, 39.90923]; // 北京，作为定位失败时的默认中心
+
+let sport = '跑步', mode = 'distance';
+let amapReady = false;
+let map, geolocation, walking, riding, placeSearch;
+let routeLine = null, recordLine = null, startMarker = null, endMarker = null, facilityMarker = null, facilityInfo = null;
+let recording = false, watchId = null, recStart = null, elapsed = 0, recPoints = [];
+let origin = null;
+
+// ---------- 选项 ----------
+(function () {
+  const es = document.getElementById('opt-sport');
+  es.innerHTML = Object.keys(SPORTS).map(s => '<span class="chip' + (s === sport ? ' active' : '') + '" data-v="' + s + '">' + s + '</span>').join('');
+  es.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    es.querySelectorAll('.chip').forEach(x => x.classList.remove('active')); c.classList.add('active');
+    sport = c.dataset.v;
+    document.getElementById('target-val').value = mode === 'distance' ? 5 : 30;
+  });
+  const em = document.getElementById('opt-mode');
+  em.innerHTML = '<span class="chip active" data-v="distance">距离(km)</span><span class="chip" data-v="time">时长(分)</span>';
+  em.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    em.querySelectorAll('.chip').forEach(x => x.classList.remove('active')); c.classList.add('active');
+    mode = c.dataset.v;
+    document.getElementById('target-val').value = mode === 'distance' ? 5 : 30;
+  });
+})();
+
+function targetDistanceKm() {
+  const v = Number(document.getElementById('target-val').value) || 5;
+  return mode === 'distance' ? v : v / 60 * SPORTS[sport].speed;
+}
+function fmt(s) { return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); }
+function setStatus(t) { document.getElementById('map-status').textContent = t; }
+
+// ---------- 加载高德地图 ----------
+function loadAMap() {
+  return new Promise(function (resolve, reject) {
+    if (window.AMap) { resolve(); return; }
+    if (AMAP_SECURITY) window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY };
+    const plugins = ['AMap.Walking', 'AMap.Riding', 'AMap.Geolocation', 'AMap.PlaceSearch', 'AMap.GeometryUtil'];
+    const s = document.createElement('script');
+    s.src = 'https://webapi.amap.com/maps?v=2.0&key=' + AMAP_KEY + '&plugin=' + plugins.join(',');
+    s.onload = function () { window.AMap ? resolve() : reject(new Error('AMap 未就绪')); };
+    s.onerror = function () { reject(new Error('AMap 加载失败')); };
+    document.head.appendChild(s);
+    setTimeout(function () { if (!window.AMap) reject(new Error('AMap 加载超时')); }, 10000);
+  });
+}
+
+loadAMap().then(initAMap).catch(function (e) {
+  console.warn('高德地图不可用，降级为离线模拟引擎：', e.message);
+  useFallback();
+});
+
+function initAMap() {
+  amapReady = true;
+  document.getElementById('map-fallback').classList.add('hidden');
+  document.getElementById('amap').classList.remove('hidden');
+
+  map = new AMap.Map('amap', {
+    zoom: 14, center: DEFAULT_CENTER, viewMode: '2D',
+    mapStyle: 'amap://styles/whitesmoke'
+  });
+
+  // 规划引擎（不自动绘制，改为手动绘制以便迭代与清理）
+  walking = new AMap.Walking({ hideMarkers: true });
+  riding = new AMap.Riding({ hideMarkers: true });
+
+  // 定位
+  geolocation = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 8000, showButton: false, panToLocation: true, zoomToAccuracy: true });
+  map.addControl(geolocation);
+  geolocation.getCurrentPosition(function (status, result) {
+    if (status === 'complete' && result.position) {
+      origin = [result.position.lng, result.position.lat];
+      setStatus('已定位到当前位置');
+      loadFacilities(origin);
+    } else {
+      origin = DEFAULT_CENTER.slice();
+      setStatus('定位失败，使用默认城市（北京）');
+      loadFacilities(origin);
+    }
+  });
+
+  document.getElementById('btn-route').onclick = planRoute;
+  document.getElementById('btn-record').onclick = startRecord;
+  document.getElementById('btn-stop').onclick = stopRecord;
+
+  renderRouteStats(null);
+  renderLiveStats();
+}
+
+// ---------- 路线规划 ----------
+function destinationPoint(distM, bearing) {
+  try {
+    const p = AMap.GeometryUtil.destination(new AMap.LngLat(origin[0], origin[1]), distM, bearing);
+    return [p.lng, p.lat];
+  } catch (e) {
+    return [origin[0] + distM / 111000 * Math.cos(bearing * Math.PI / 180),
+            origin[1] + distM / 111000 * Math.sin(bearing * Math.PI / 180)];
+  }
+}
+
+function clearRoute() {
+  if (routeLine) { map.remove(routeLine); routeLine = null; }
+  if (startMarker) { map.remove(startMarker); startMarker = null; }
+  if (endMarker) { map.remove(endMarker); endMarker = null; }
+}
+
+// 从高德返回的 steps 拼出完整路径
+function routePath(result) {
+  const path = [];
+  (result.routes[0].steps || []).forEach(function (s) {
+    (s.path || []).forEach(function (p) { path.push([p.lng, p.lat]); });
+  });
+  return path;
+}
+
+function planRoute() {
+  if (!amapReady) { fallbackPlanRoute(); return; }
+  if (!origin) origin = DEFAULT_CENTER.slice();
+  const targetKm = targetDistanceKm();
+  setStatus('正在规划路线…');
+  clearRoute();
+  const engine = SPORTS[sport].route === 'riding' ? riding : walking;
+  const bearing = Math.floor(Math.random() * 360);
+  let attempt = 0, guessKm = targetKm;
+
+  function tryPlan() {
+    attempt++;
+    const dest = destinationPoint(guessKm * 1000, bearing);
+    engine.search(new AMap.LngLat(origin[0], origin[1]), new AMap.LngLat(dest[0], dest[1]), function (status, result) {
+      if (status !== 'complete' || !result.routes || !result.routes.length) {
+        drawSimulatedRoute((result && (result.info || result.infocode)) || '');
+        return;
+      }
+      const actualKm = result.routes[0].distance / 1000;
+      // 道路距离通常长于直线距离；误差 >8% 时按比例修正终点并重试（最多 3 次）
+      if (attempt < 3 && Math.abs(actualKm - targetKm) / targetKm > 0.08) {
+        guessKm = Math.max(0.2, guessKm * targetKm / actualKm);
+        tryPlan();
+        return;
+      }
+      finishRoute(dest, actualKm, routePath(result));
+    });
+  }
+  tryPlan();
+}
+
+function finishRoute(dest, km, path) {
+  const mins = Math.round(km / SPORTS[sport].speed * 60); // 按运动配速换算，而非步行时长
+  routeLine = new AMap.Polyline({ path: path, strokeColor: '#3a9bff', strokeWeight: 6, lineJoin: 'round' });
+  startMarker = new AMap.Marker({ position: origin, label: { content: '起点', direction: 'top' } });
+  endMarker = new AMap.Marker({ position: dest, label: { content: '终点', direction: 'top' } });
+  map.add([routeLine, startMarker, endMarker]);
+  map.setFitView([routeLine]);
+  const target = targetDistanceKm();
+  setStatus('路线已生成（目标 ' + target.toFixed(1) + 'km / 实际 ' + km.toFixed(1) + 'km）');
+  renderRouteStats({ km: km, mins: mins, sport: sport, targetKm: target });
+}
+
+// 在地图上绘制模拟环形路线（高德路径规划不可用时）
+function drawSimulatedRoute(info) {
+  if (!origin) origin = DEFAULT_CENTER.slice();
+  const km = targetDistanceKm();
+  const R = Math.max(60, km * 1000 / (2 * Math.PI));
+  const n = 72;
+  const path = [];
+  for (let i = 0; i <= n; i++) {
+    const bearing = i / n * 360;
+    try {
+      const p = AMap.GeometryUtil.destination(new AMap.LngLat(origin[0], origin[1]), R, bearing);
+      path.push([p.lng, p.lat]);
+    } catch (e) { break; }
+  }
+  if (path.length < 3) { setStatus('路线规划失败：' + info); return; }
+  if (routeLine) map.remove(routeLine);
+  routeLine = new AMap.Polyline({ path: path, strokeColor: '#ff6b35', strokeWeight: 5, lineJoin: 'round' });
+  map.add(routeLine);
+  map.setFitView([routeLine]);
+  const mins = Math.round(km / SPORTS[sport].speed * 60);
+  renderRouteStats({ km: km, mins: mins, sport: sport });
+  setStatus('已生成模拟路线' + (info ? '（' + info + '）' : '') + ' · 配置安全密钥后可用真实路线');
+  Common.toast('高德路径规划未授权，已改用模拟路线', 'warn');
+}
+
+function renderRouteStats(rt) {
+  const weight = Number(Store.getProfile().weight) || 70;
+  let items;
+  if (rt) {
+    const kcal = Math.round(SPORTS[rt.sport].met * weight * (rt.mins / 60));
+    items = [['总距离', rt.km.toFixed(2) + ' km'], ['预计时长', rt.mins + ' 分钟'], ['运动类型', rt.sport], ['预计消耗', kcal + ' kcal']];
+  } else {
+    items = [['总距离', '—'], ['预计时长', '—'], ['运动类型', sport], ['预计消耗', '—']];
+  }
+  document.getElementById('route-stats').innerHTML = items.map(x =>
+    '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('');
+}
+
+// ---------- 轨迹记录 ----------
+function startRecord() {
+  if (recording) return;
+  if (!amapReady) { fallbackStartRecord(); return; }
+  recording = true; recStart = Date.now(); elapsed = 0; recPoints = [];
+  document.getElementById('btn-record').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('rec-status').textContent = '记录中…';
+  if (recordLine) { map.remove(recordLine); recordLine = null; }
+  recPoints = origin ? [origin.slice()] : [];
+  map.setCenter(origin || DEFAULT_CENTER);
+
+  watchId = geolocation.watchPosition(function (status, result) {
+    if (status === 'complete' && result.position) {
+      const p = [result.position.lng, result.position.lat];
+      recPoints.push(p);
+      if (recordLine) map.remove(recordLine);
+      recordLine = new AMap.Polyline({ path: recPoints, strokeColor: '#ff6b35', strokeWeight: 5, lineJoin: 'round' });
+      map.add(recordLine);
+      updateRecStats();
+    }
+  });
+  Common.toast('开始记录轨迹', 'ok');
+}
+
+function updateRecStats() {
+  const weight = Number(Store.getProfile().weight) || 70;
+  let distM = 0;
+  for (let i = 1; i < recPoints.length; i++) {
+    try { distM += AMap.GeometryUtil.distance(new AMap.LngLat(recPoints[i - 1][0], recPoints[i - 1][1]), new AMap.LngLat(recPoints[i][0], recPoints[i][1])); }
+    catch (e) {}
+  }
+  const distKm = distM / 1000;
+  const kcal = Math.round(SPORTS[sport].met * weight * (elapsed / 3600));
+  const items = [['已行进', distKm.toFixed(2) + ' km'], ['已用时间', fmt(elapsed)], ['平均配速', SPORTS[sport].speed.toFixed(1) + ' km/h'], ['消耗', kcal + ' kcal']];
+  document.getElementById('live-stats').innerHTML = items.map(x =>
+    '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('');
+}
+function renderLiveStats() {
+  const items = [['已行进', '0.00 km'], ['已用时间', '0:00'], ['平均配速', SPORTS[sport].speed.toFixed(1) + ' km/h'], ['消耗', '0 kcal']];
+  document.getElementById('live-stats').innerHTML = items.map(x =>
+    '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('');
+}
+
+function stopRecord() {
+  if (!recording) return;
+  recording = false;
+  if (geolocation) geolocation.clearWatch(watchId);
+  document.getElementById('btn-record').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('rec-status').textContent = 'GPS 实时记录';
+
+  let distM = 0;
+  for (let i = 1; i < recPoints.length; i++) {
+    try { distM += AMap.GeometryUtil.distance(new AMap.LngLat(recPoints[i - 1][0], recPoints[i - 1][1]), new AMap.LngLat(recPoints[i][0], recPoints[i][1])); } catch (e) {}
+  }
+  const distKm = Math.round(distM / 100) / 10;
+  const weight = Number(Store.getProfile().weight) || 70;
+  const kcal = Math.round(SPORTS[sport].met * weight * (elapsed / 3600));
+  Common.openModal(
+    '<div class="modal-title"><i class="ic" data-ic="award" data-ic-size="18"></i> 运动记录完成</div>' +
+    '<div class="modal-sub">' + sport + ' · ' + Common.fmtDateTime(new Date(recStart)) + '</div>' +
+    '<div class="grid grid-4">' +
+      '<div class="stat"><span class="stat-val">' + distKm + '<small>km</small></span><span class="stat-label">距离</span></div>' +
+      '<div class="stat"><span class="stat-val">' + fmt(elapsed) + '</span><span class="stat-label">时长</span></div>' +
+      '<div class="stat"><span class="stat-val">' + kcal + '<small>kcal</small></span><span class="stat-label">消耗</span></div>' +
+      '<div class="stat"><span class="stat-val">' + recPoints.length + '</span><span class="stat-label">轨迹点</span></div>' +
+    '</div>' +
+    '<div class="flex gap-12" style="justify-content:flex-end;margin-top:18px;"><button class="btn btn-primary" data-ok>好的</button></div>');
+  document.querySelector('.overlay [data-ok]').onclick = function () { document.querySelector('.overlay').remove(); };
+}
+
+// 计时
+setInterval(function () { if (recording) { elapsed += 1; updateRecStats(); } }, 1000);
+
+// ---------- 周边设施 ----------
+const FAC_TYPES = [
+  { kw: '健身房', ico: 'dumbbell' },
+  { kw: '公园', ico: 'leaf' },
+  { kw: '体育场馆', ico: 'award' }
+];
+function loadFacilities(center) {
+  if (!amapReady || !window.AMap) { renderFacilitiesFallback(); return; }
+  placeSearch = new AMap.PlaceSearch({ pageSize: 20, pageIndex: 1, extensions: 'all' });
+  const found = [];
+  let done = 0;
+  FAC_TYPES.forEach(function (ft) {
+    placeSearch.searchNearBy(ft.kw, new AMap.LngLat(center[0], center[1]), 3000, function (status, result) {
+      if (status === 'complete' && result.poiList && result.poiList.pois) {
+        result.poiList.pois.slice(0, 5).forEach(function (p) {
+          found.push({ name: p.name, type: p.type, dist: p.distance, addr: p.address || '', loc: p.location, ico: ft.ico });
+        });
+      }
+      if (++done === FAC_TYPES.length) renderFacilities(found, center);
+    });
+  });
+}
+function renderFacilities(list, center) {
+  const el = document.getElementById('facilities');
+  if (!list.length) {
+    // POI 搜索未授权/无结果 → 离线示例
+    document.getElementById('fac-status').textContent = '离线示例（POI 未授权）';
+    renderFacilitiesFallback();
+    return;
+  }
+  document.getElementById('fac-status').textContent = '高德地图 · 3km 内';
+  list.sort(function (a, b) { return (a.dist || 0) - (b.dist || 0); });
+  el.innerHTML = list.slice(0, 12).map(function (f) {
+    const d = f.dist != null ? (f.dist < 1000 ? Math.round(f.dist) + ' m' : (f.dist / 1000).toFixed(1) + ' km') : '';
+    const sub = (f.type || '').split(';').pop() || f.addr;
+    return '<div class="facility" data-loc="' + (f.loc ? f.loc.lng + ',' + f.loc.lat : '') + '"' +
+      ' data-name="' + Common.esc(f.name) + '" data-sub="' + Common.esc(sub) + '" style="cursor:pointer;">' +
+      '<span class="f-ico"><i class="ic" data-ic="' + f.ico + '"></i></span>' +
+      '<span style="flex:1;min-width:0;"><span style="font-weight:600;font-size:13.5px;">' + Common.esc(f.name) + '</span>' +
+      '<span class="mute" style="display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + Common.esc(sub) + '</span></span>' +
+      '<span class="tag tag-accent">' + d + '</span></div>';
+  }).join('');
+  el.querySelectorAll('.facility').forEach(function (row) {
+    row.onclick = function () {
+      const loc = row.dataset.loc;
+      if (!loc || !map) return;
+      const parts = loc.split(',').map(Number);
+      const name = row.dataset.name || '目标点';
+      const sub = row.dataset.sub || '';
+      // 移除旧标注
+      if (facilityMarker) { map.remove(facilityMarker); facilityMarker = null; }
+      if (facilityInfo) { facilityInfo.close(); facilityInfo = null; }
+      // 目的点标注
+      facilityMarker = new AMap.Marker({
+        position: parts,
+        anchor: 'bottom-center',
+        label: { content: name, direction: 'top' }
+      });
+      facilityInfo = new AMap.InfoWindow({
+        content: '<div style="padding:6px 10px;font-size:13px;color:#111;line-height:1.6;">' +
+          '<b>' + Common.esc(name) + '</b>' + (sub ? '<br>' + Common.esc(sub) : '') + '</div>',
+        offset: new AMap.Pixel(0, -34)
+      });
+      map.add(facilityMarker);
+      map.setZoomAndCenter(16, parts);
+      facilityInfo.open(map, parts);
+    };
+  });
+}
+function renderFacilitiesFallback() {
+  const FACILITIES = [
+    { n: '星动力健身工作室', t: '健身房', d: '0.4 km', ico: 'dumbbell' },
+    { n: '中央公园环形跑道', t: '公园', d: '0.9 km', ico: 'leaf' },
+    { n: '市民体育中心', t: '运动场馆', d: '1.6 km', ico: 'award' },
+    { n: '滨江健身步道', t: '步道', d: '2.1 km', ico: 'route' },
+    { n: '24H 自助健身房', t: '健身房', d: '2.8 km', ico: 'dumbbell' }
+  ];
+  document.getElementById('facilities').innerHTML = FACILITIES.map(function (f) {
+    return '<div class="facility"><span class="f-ico"><i class="ic" data-ic="' + f.ico + '"></i></span>' +
+      '<span style="flex:1;"><span style="font-weight:600;font-size:13.5px;">' + f.n + '</span>' +
+      '<span class="mute" style="display:block;font-size:11.5px;">' + f.t + '</span></span>' +
+      '<span class="tag tag-accent">' + f.d + '</span></div>';
+  }).join('');
+}
+
+/* ============================================================
+   离线降级：模拟引擎（高德不可用时启用）
+   ============================================================ */
+let fbRoute = { points: [], length: 0, distance: 0 }, fbProgress = 0;
+function useFallback() {
+  amapReady = false;
+  document.getElementById('amap').classList.add('hidden');
+  document.getElementById('map-fallback').classList.remove('hidden');
+  setStatus('离线模拟引擎（高德地图不可用）');
+  document.getElementById('fac-status').textContent = '离线示例数据';
+  // 网格
+  let g = '';
+  for (let x = 40; x < 800; x += 40) g += '<line x1="' + x + '" y1="0" x2="' + x + '" y2="480"/>';
+  for (let y = 40; y < 480; y += 40) g += '<line x1="0" y1="' + y + '" x2="800" y2="' + y + '"/>';
+  document.getElementById('map-grid').innerHTML = g;
+  document.getElementById('btn-route').onclick = fallbackPlanRoute;
+  document.getElementById('btn-record').onclick = fallbackStartRecord;
+  document.getElementById('btn-stop').onclick = fallbackStopRecord;
+  renderFacilitiesFallback();
+  renderLiveStats();
+  fallbackPlanRoute();
+}
+function fallbackPlanRoute() {
+  const target = targetDistanceKm();
+  const cx = 400, cy = 240, n = 90;
+  const seed = Math.floor(target * 100) + sport.length;
+  const rnd = i => ((Math.sin(i * 12.9898 + seed) * 43758.5453) % 1 + 1) % 1;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * Math.PI * 2;
+    const rr = 130 + rnd(i) * 60 + Math.sin(a * 3) * 30;
+    pts.push([Math.round(cx + Math.cos(a) * rr * (1 + Math.sin(a * 2) * 0.12)), Math.round(cy + Math.sin(a) * rr * 0.72)]);
+  }
+  const d = 'M' + pts.map(p => p[0] + ' ' + p[1]).join(' L');
+  document.getElementById('route-path').setAttribute('d', d);
+  document.getElementById('route-done').setAttribute('d', d);
+  document.getElementById('route-done').style.strokeDasharray = '0 100000';
+  const path = document.getElementById('route-path');
+  fbRoute = { points: pts, length: path.getTotalLength(), distance: target };
+  document.getElementById('start-dot').setAttribute('cx', pts[0][0]); document.getElementById('start-dot').setAttribute('cy', pts[0][1]);
+  document.getElementById('end-dot').setAttribute('cx', pts[0][0]); document.getElementById('end-dot').setAttribute('cy', pts[0][1]);
+  fbProgress = 0;
+  renderRouteStats({ km: target, mins: Math.round(target / SPORTS[sport].speed * 60), sport: sport });
+}
+let fbRec = false, fbHandle = null, fbElapsed = 0;
+function fallbackStartRecord() {
+  if (fbRec) return;
+  fbRec = true; fbElapsed = 0; fbProgress = 0;
+  document.getElementById('btn-record').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  document.getElementById('live-dot').setAttribute('opacity', '1');
+  fbHandle = setInterval(() => {
+    fbElapsed++;
+    fbProgress = Math.min(1, fbProgress + (SPORTS[sport].speed / 3600) / fbRoute.distance);
+    const path = document.getElementById('route-path');
+    const pt = path.getPointAtLength(fbProgress * fbRoute.length);
+    document.getElementById('live-dot').setAttribute('cx', pt.x); document.getElementById('live-dot').setAttribute('cy', pt.y);
+    document.getElementById('route-done').style.strokeDasharray = (fbProgress * fbRoute.length) + ' 100000';
+    const weight = Number(Store.getProfile().weight) || 70;
+    const kcal = Math.round(SPORTS[sport].met * weight * (fbElapsed / 3600));
+    const items = [['已行进', (fbRoute.distance * fbProgress).toFixed(2) + ' km'], ['已用时间', fmt(fbElapsed)], ['平均配速', SPORTS[sport].speed.toFixed(1) + ' km/h'], ['消耗', kcal + ' kcal']];
+    document.getElementById('live-stats').innerHTML = items.map(x => '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('');
+    if (fbProgress >= 1) { clearInterval(fbHandle); fbRec = false; }
+  }, 1000);
+}
+function fallbackStopRecord() {
+  if (!fbRec && fbProgress === 0) return;
+  clearInterval(fbHandle); fbRec = false;
+  document.getElementById('btn-record').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('live-dot').setAttribute('opacity', '0');
+  document.getElementById('route-done').style.strokeDasharray = '0 100000';
+  fbProgress = 0;
+  Common.toast('已结束记录', 'ok');
+}
+</script>
+</body>
+</html>

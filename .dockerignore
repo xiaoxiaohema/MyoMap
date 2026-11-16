@@ -1,0 +1,21 @@
+# 开发文件（无需进入镜像）
+# 注意：不要排除 dist/ —— 前端镜像 build.sh 需要 COPY dist/
+*.py
+*.sh
+!deploy/*.sh
+body_v*.js
+anatomy*.html
+exercises.json
+matched_exercises.json
+exercise_gifs.json
+three_body_code.txt
+svg_*.svg
+exercise-gifs/
+utils/
+legacy/
+
+# 其他
+.git
+.gitignore
+.DS_Store
+node_modules

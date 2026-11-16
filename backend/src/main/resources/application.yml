@@ -1,0 +1,59 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: myomap-backend
+  profiles:
+    # 默认加载 local 配置（本地口令等敏感项放在 gitignore 的 application-local.yml 中）
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYOMAP_DB_HOST:localhost}:${MYOMAP_DB_PORT:3306}/${MYOMAP_DB_NAME:myomap}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYOMAP_DB_USERNAME:root}
+    password: ${MYOMAP_DB_PASSWORD:}
+  sql:
+    init:
+      # 首次启动自动执行 schema.sql 建表（幂等，可改为 never 手动建表）
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:schema.sql
+      continue-on-error: true
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# ===== JWT =====
+myomap:
+  jwt:
+    # 生产环境务必通过环境变量 MYOMAP_JWT_SECRET 覆盖为随机密钥（至少 32 字节）
+    secret: ${MYOMAP_JWT_SECRET:dev-only-insecure-secret-please-override-0123456789}
+    expire-hours: ${MYOMAP_JWT_EXPIRE_HOURS:168}
+  # ===== AI（服务端代理，Key 不暴露给前端）=====
+  ai:
+    base-url: ${MYOMAP_AI_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
+    api-key: ${MYOMAP_AI_KEY:}
+    model: ${MYOMAP_AI_MODEL:glm-4-flash}
+    vision-model: ${MYOMAP_AI_VISION_MODEL:glm-4v-flash}
+  # ===== 允许跨域的前端地址（* 表示允许任意来源，便于局域网/外网访问）=====
+  cors:
+    allowed-origins: ${MYOMAP_CORS_ORIGINS:*}
+
+# Swagger UI: http://localhost:8081/swagger-ui.html
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.myomap: debug

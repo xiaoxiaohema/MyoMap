@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.myomap.backend</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/xiaohema/Library/Java/JavaVirtualMachines/ms-17.0.19/Contents/Home/bin/java</string>
+        <string>-Xms128m</string>
+        <string>-Xmx512m</string>
+        <string>-jar</string>
+        <string>/Users/xiaohema/Desktop/MyoMap/backend/target/myomap-backend-1.0.0.jar</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/xiaohema/Desktop/MyoMap/backend</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/myomap-backend.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/myomap-backend.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- 智谱 GLM API Key：服务端持有，所有电脑登录后无需再配置 -->
+        <key>MYOMAP_AI_KEY</key>
+        <string>b2466c820cae4e12884da05dd9faaf8f.tGiB5S06uNGzAbQL</string>
+    </dict>
+</dict>
+</plist>

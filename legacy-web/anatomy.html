@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医学人体肌肉解剖图 - 交互式UI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: radial-gradient(ellipse at top, #1a2030 0%, #0a0e18 60%, #050810 100%);
+            color: #e8eef5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 顶部导航 */
+        .top-bar {
+            background: rgba(15, 20, 32, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(80, 120, 180, 0.2);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .brand-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .brand span { color: #e74c3c; }
+        .top-meta {
+            font-size: 12px;
+            color: #6b7a90;
+            letter-spacing: 1px;
+        }
+
+        /* 主容器 */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+            padding: 24px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: calc(100vh - 65px);
+        }
+
+        /* 左侧：人体图区 */
+        .anatomy-stage {
+            background: linear-gradient(180deg, rgba(20,28,44,0.6) 0%, rgba(10,14,24,0.6) 100%);
+            border: 1px solid rgba(80, 120, 180, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stage-toolbar {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .view-switch {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(80, 120, 180, 0.25);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .view-btn {
+            padding: 10px 24px;
+            background: transparent;
+            border: none;
+            color: #8a9ab0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.25s;
+        }
+        .view-btn:hover { color: #e8eef5; background: rgba(255,255,255,0.04); }
+        .view-btn.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+        }
+
+        .tool-btn {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(80, 120, 180, 0.25);
+            border-radius: 10px;
+            color: #b8c4d4;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.25s;
+        }
+        .tool-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+        /* SVG 容器 */
+        .svg-wrap {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .body-svg {
+            width: 100%;
+            max-width: 520px;
+            height: auto;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+        }
+
+        /* 人体轮廓（背景层） */
+        .body-outline {
+            fill: #1a2236;
+            stroke: #2a3650;
+            stroke-width: 1.5;
+        }
+
+        /* 肌肉通用样式 */
+        .muscle {
+            fill: #c0392b;
+            fill-opacity: 0.55;
+            stroke: #2a0a08;
+            stroke-width: 1;
+            cursor: pointer;
+            transition: fill-opacity 0.2s, filter 0.2s, fill 0.2s;
+        }
+        .muscle:hover {
+            fill: #ff6b4a;
+            fill-opacity: 0.92;
+            filter: drop-shadow(0 0 8px rgba(255,107,74,0.8)) brightness(1.15);
+        }
+        .muscle.dimmed { fill-opacity: 0.2; }
+
+        /* 骨骼/参考线 */
+        .skeleton-line {
+            stroke: #3a4660;
+            stroke-width: 1;
+            fill: none;
+            opacity: 0.5;
+        }
+
+        /* 内嵌标签 */
+        .muscle-label {
+            fill: #fff;
+            font-size: 9px;
+            font-weight: 600;
+            text-anchor: middle;
+            pointer-events: none;
+            opacity: 0.85;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            background: rgba(10, 14, 24, 0.96);
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            padding: 10px 14px;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transform: translate(-50%, -130%);
+            transition: opacity 0.15s;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(231,76,60,0.2);
+            min-width: 140px;
+        }
+        .tooltip.visible { opacity: 1; }
+        .tooltip-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ff6b4a;
+            margin-bottom: 4px;
+        }
+        .tooltip-en {
+            font-size: 11px;
+            color: #8a9ab0;
+            font-style: italic;
+        }
+        .tooltip-hint {
+            font-size: 10px;
+            color: #5a6878;
+            margin-top: 6px;
+            border-top: 1px solid rgba(138,154,176,0.2);
+            padding-top: 6px;
+        }
+
+        /* 右侧信息面板 */
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .info-card {
+            background: linear-gradient(180deg, rgba(20,28,44,0.7) 0%, rgba(10,14,24,0.7) 100%);
+            border: 1px solid rgba(80, 120, 180, 0.18);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .info-card h3 {
+            font-size: 13px;
+            color: #8a9ab0;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-card h3::before {
+            content: '';
+            width: 3px; height: 14px;
+            background: #e74c3c;
+            border-radius: 2px;
+        }
+
+        .selected-box {
+            min-height: 90px;
+        }
+        .selected-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .selected-en {
+            font-size: 13px;
+            color: #8a9ab0;
+            font-style: italic;
+            margin-bottom: 12px;
+        }
+        .selected-id {
+            display: inline-block;
+            font-size: 11px;
+            font-family: 'SF Mono', Consolas, monospace;
+            background: rgba(231,76,60,0.12);
+            color: #ff6b4a;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(231,76,60,0.3);
+        }
+        .selected-empty {
+            color: #5a6878;
+            font-size: 14px;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .jump-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            margin-top: 12px;
+        }
+        .jump-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(231,76,60,0.4); }
+        .jump-btn:disabled {
+            background: rgba(255,255,255,0.06);
+            color: #5a6878;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 肌肉列表 */
+        .muscle-list {
+            max-height: 360px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .muscle-list::-webkit-scrollbar { width: 6px; }
+        .muscle-list::-webkit-scrollbar-track { background: transparent; }
+        .muscle-list::-webkit-scrollbar-thumb { background: rgba(138,154,176,0.3); border-radius: 3px; }
+
+        .list-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .list-item:hover { background: rgba(231,76,60,0.12); }
+        .list-item.active { background: rgba(231,76,60,0.2); color: #ff6b4a; }
+        .list-item-en { font-size: 11px; color: #6b7a90; font-style: italic; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(80,120,180,0.1);
+            font-size: 13px;
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #8a9ab0; }
+        .stat-value { color: #ff6b4a; font-weight: 600; }
+
+        .legend {
+            font-size: 12px;
+            color: #6b7a90;
+            line-height: 1.7;
+        }
+        .legend kbd {
+            background: rgba(255,255,255,0.08);
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #b8c4d4;
+        }
+
+        /* 隐藏 */
+        .hidden { display: none !important; }
+
+        /* 响应式 */
+        @media (max-width: 960px) {
+            .main { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部 -->
+    <div class="top-bar">
+        <div class="brand">
+            <div class="brand-icon"></div>
+            <div>医学人体<span>肌肉解剖图</span></div>
+        </div>
+        <div class="top-meta">INTERACTIVE ANATOMY · 悬停查看 · 点击预留跳转</div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main">
+        <!-- 左侧：人体图 -->
+        <div class="anatomy-stage">
+            <div class="stage-toolbar">
+                <div class="view-switch">
+                    <button class="view-btn active" data-view="front" onclick="switchView('front')">正面视图</button>
+                    <button class="view-btn" data-view="back" onclick="switchView('back')">背面视图</button>
+                </div>
+                <button class="tool-btn" onclick="toggleLabels()">️ 标签</button>
+                <button class="tool-btn" onclick="resetSelection()"> 重置</button>
+            </div>
+
+            <div class="svg-wrap">
+                <!-- ===== 正面视图 ===== -->
+                <svg id="front-view" class="body-svg" viewBox="0 0 400 800" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="muscleGradFront" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#e74c3c"/>
+                            <stop offset="100%" stop-color="#922b21"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- 人体背景轮廓 -->
+                    <path class="body-outline" d="
+                        M200 18
+                        C 222 18 238 34 238 58
+                        C 238 72 232 84 224 92
+                        L 226 110
+                        C 226 118 222 124 214 128
+                        L 232 138
+                        C 256 144 274 156 286 176
+                        L 300 210
+                        L 308 270
+                        L 300 330
+                        L 294 360
+                        L 288 380
+                        C 286 396 280 408 270 416
+                        L 264 440
+                        L 270 500
+                        L 274 560
+                        L 272 620
+                        L 268 680
+                        L 264 740
+                        L 258 778
+                        L 244 782
+                        L 236 778
+                        L 230 740
+                        L 226 680
+                        L 224 620
+                        L 226 560
+                        L 222 500
+                        L 218 440
+                        L 214 410
+                        C 208 416 202 418 200 418
+                        C 198 418 192 416 186 410
+                        L 182 440
+                        L 178 500
+                        L 174 560
+                        L 176 620
+                        L 174 680
+                        L 170 740
+                        L 164 778
+                        L 156 782
+                        L 142 778
+                        L 136 740
+                        L 132 680
+                        L 128 620
+                        L 126 560
+                        L 130 500
+                        L 136 440
+                        L 130 416
+                        C 120 408 114 396 112 380
+                        L 106 360
+                        L 100 330
+                        L 92 270
+                        L 100 210
+                        L 114 176
+                        C 126 156 144 144 168 138
+                        L 186 128
+                        C 178 124 174 118 174 110
+                        L 176 92
+                        C 168 84 162 72 162 58
+                        C 162 34 178 18 200 18 Z"/>
+
+                    <!-- 中央参考线 -->
+                    <line class="skeleton-line" x1="200" y1="100" x2="200" y2="780"/>
+
+                    <!-- ===== 头部 ===== -->
+                    <!-- 额肌 -->
+                    <path class="muscle" data-muscle-id="frontalis" data-name="额肌" data-name-en="Frontalis"
+                          d="M178 32 Q200 22 222 32 L222 50 Q200 46 178 50 Z"/>
+                    <!-- 眼轮匝肌 -->
+                    <path class="muscle" data-muscle-id="orbicularis_oculi" data-name="眼轮匝肌" data-name-en="Orbicularis Oculi"
+                          d="M183 52 Q190 48 197 52 Q197 58 190 60 Q184 58 183 52 Z"/>
+                    <path class="muscle" data-muscle-id="orbicularis_oculi" data-name="眼轮匝肌" data-name-en="Orbicularis Oculi"
+                          d="M203 52 Q210 48 217 52 Q216 58 210 60 Q203 58 203 52 Z"/>
+                    <!-- 咬肌 -->
+                    <path class="muscle" data-muscle-id="masseter" data-name="咬肌" data-name-en="Masseter"
+                          d="M170 64 Q166 72 170 82 L180 82 Q182 74 180 66 Z"/>
+                    <path class="muscle" data-muscle-id="masseter" data-name="咬肌" data-name-en="Masseter"
+                          d="M230 64 Q234 72 230 82 L220 82 Q218 74 220 66 Z"/>
+                    <!-- 口轮匝肌 -->
+                    <path class="muscle" data-muscle-id="orbicularis_oris" data-name="口轮匝肌" data-name-en="Orbicularis Oris"
+                          d="M192 76 Q200 73 208 76 Q208 82 200 83 Q192 82 192 76 Z"/>
+
+                    <!-- ===== 颈部 ===== -->
+                    <!-- 胸锁乳突肌 -->
+                    <path class="muscle" data-muscle-id="sternocleidomastoid" data-name="胸锁乳突肌" data-name-en="Sternocleidomastoid"
+                          d="M186 100 Q178 112 174 132 L196 134 Q198 118 200 106 Z"/>
+                    <path class="muscle" data-muscle-id="sternocleidomastoid" data-name="胸锁乳突肌" data-name-en="Sternocleidomastoid"
+                          d="M214 100 Q222 112 226 132 L204 134 Q202 118 200 106 Z"/>
+
+                    <!-- ===== 肩部 ===== -->
+                    <!-- 斜方肌（上部前侧） -->
+                    <path class="muscle" data-muscle-id="trapezius_anterior" data-name="斜方肌（上部）" data-name-en="Trapezius (Upper)"
+                          d="M178 132 Q200 126 222 132 L232 152 Q200 144 168 152 Z"/>
+
+                    <!-- 三角肌（前束） -->
+                    <path class="muscle" data-muscle-id="deltoid_anterior" data-name="三角肌（前束）" data-name-en="Deltoid (Anterior)"
+                          d="M168 150 Q150 158 142 178 Q138 200 148 216 L168 210 L178 168 Z"/>
+                    <path class="muscle" data-muscle-id="deltoid_anterior" data-name="三角肌（前束）" data-name-en="Deltoid (Anterior)"
+                          d="M232 150 Q250 158 258 178 Q262 200 252 216 L232 210 L222 168 Z"/>
+
+                    <!-- ===== 胸部 ===== -->
+                    <!-- 胸大肌 -->
+                    <path class="muscle" data-muscle-id="pectoralis_major" data-name="胸大肌" data-name-en="Pectoralis Major"
+                          d="M178 168 Q200 162 222 168 L222 220 Q200 214 178 220 Z"/>
+                    <!-- 胸大肌下缘（分割） -->
+                    <path class="muscle" data-muscle-id="pectoralis_major" data-name="胸大肌" data-name-en="Pectoralis Major"
+                          d="M178 220 Q200 214 222 220 L222 232 Q200 228 178 232 Z"/>
+
+                    <!-- ===== 上臂 ===== -->
+                    <!-- 肱二头肌 -->
+                    <path class="muscle" data-muscle-id="biceps_brachii" data-name="肱二头肌" data-name-en="Biceps Brachii"
+                          d="M150 220 Q140 250 138 290 Q138 320 146 340 L168 336 Q166 300 168 260 L172 224 Z"/>
+                    <path class="muscle" data-muscle-id="biceps_brachii" data-name="肱二头肌" data-name-en="Biceps Brachii"
+                          d="M250 220 Q260 250 262 290 Q262 320 254 340 L232 336 Q234 300 232 260 L228 224 Z"/>
+
+                    <!-- 肱肌 -->
+                    <path class="muscle" data-muscle-id="brachialis" data-name="肱肌" data-name-en="Brachialis"
+                          d="M168 336 Q166 360 168 380 L182 378 L182 340 Z"/>
+                    <path class="muscle" data-muscle-id="brachialis" data-name="肱肌" data-name-en="Brachialis"
+                          d="M232 336 Q234 360 232 380 L218 378 L218 340 Z"/>
+
+                    <!-- ===== 前臂 ===== -->
+                    <!-- 前臂屈肌群 -->
+                    <path class="muscle" data-muscle-id="forearm_flexors" data-name="前臂屈肌群" data-name-en="Forearm Flexors"
+                          d="M146 380 Q138 420 132 470 Q130 510 138 540 L162 536 Q162 490 166 440 L168 384 Z"/>
+                    <path class="muscle" data-muscle-id="forearm_flexors" data-name="前臂屈肌群" data-name-en="Forearm Flexors"
+                          d="M254 380 Q262 420 268 470 Q270 510 262 540 L238 536 Q238 490 234 440 L232 384 Z"/>
+
+                    <!-- ===== 腹部 ===== -->
+                    <!-- 腹直肌 -->
+                    <path class="muscle" data-muscle-id="rectus_abdominis" data-name="腹直肌" data-name-en="Rectus Abdominis"
+                          d="M178 236 L222 236 L222 360 Q200 366 178 360 Z"/>
+                    <!-- 腹直肌腱划（分割线） -->
+                    <line class="skeleton-line" x1="180" y1="262" x2="220" y2="262"/>
+                    <line class="skeleton-line" x1="180" y1="288" x2="220" y2="288"/>
+                    <line class="skeleton-line" x1="180" y1="314" x2="220" y2="314"/>
+                    <line class="skeleton-line" x1="180" y1="340" x2="220" y2="340"/>
+                    <line class="skeleton-line" x1="200" y1="236" x2="200" y2="360"/>
+
+                    <!-- 腹外斜肌 -->
+                    <path class="muscle" data-muscle-id="obliquus_externus" data-name="腹外斜肌" data-name-en="Obliquus Externus"
+                          d="M168 236 L178 236 L178 360 Q172 360 168 356 L162 320 Q160 280 168 236 Z"/>
+                    <path class="muscle" data-muscle-id="obliquus_externus" data-name="腹外斜肌" data-name-en="Obliquus Externus"
+                          d="M232 236 L222 236 L222 360 Q228 360 232 356 L238 320 Q240 280 232 236 Z"/>
+
+                    <!-- ===== 髋部 ===== -->
+                    <!-- 阔筋膜张肌（髋外侧） -->
+                    <path class="muscle" data-muscle-id="tensor_fasciae_latae" data-name="阔筋膜张肌" data-name-en="Tensor Fasciae Latae"
+                          d="M132 396 Q128 412 130 432 L150 432 L152 398 Z"/>
+                    <path class="muscle" data-muscle-id="tensor_fasciae_latae" data-name="阔筋膜张肌" data-name-en="Tensor Fasciae Latae"
+                          d="M268 396 Q272 412 270 432 L250 432 L248 398 Z"/>
+
+                    <!-- 缝匠肌（斜跨大腿） -->
+                    <path class="muscle" data-muscle-id="sartorius" data-name="缝匠肌" data-name-en="Sartorius"
+                          d="M186 412 Q172 460 150 542 L162 546 Q182 472 198 416 Z"/>
+                    <path class="muscle" data-muscle-id="sartorius" data-name="缝匠肌" data-name-en="Sartorius"
+                          d="M214 412 Q228 460 250 542 L238 546 Q218 472 202 416 Z"/>
+
+                    <!-- ===== 大腿（右腿：画面左侧 x≈128-200） ===== -->
+                    <!-- 股外侧肌（右） -->
+                    <path class="muscle" data-muscle-id="vastus_lateralis" data-name="股外侧肌" data-name-en="Vastus Lateralis"
+                          d="M132 432 Q130 482 134 532 Q142 544 154 540 L156 440 Z"/>
+                    <!-- 股直肌（右） -->
+                    <path class="muscle" data-muscle-id="rectus_femoris" data-name="股直肌" data-name-en="Rectus Femoris"
+                          d="M156 432 Q168 430 180 432 L180 540 Q168 544 158 540 Z"/>
+                    <!-- 股内侧肌（右） -->
+                    <path class="muscle" data-muscle-id="vastus_medialis" data-name="股内侧肌" data-name-en="Vastus Medialis"
+                          d="M180 432 Q190 430 198 432 L198 540 Q188 544 180 540 Z"/>
+
+                    <!-- ===== 大腿（左腿：画面右侧 x≈200-272） ===== -->
+                    <!-- 股内侧肌（左） -->
+                    <path class="muscle" data-muscle-id="vastus_medialis" data-name="股内侧肌" data-name-en="Vastus Medialis"
+                          d="M202 432 Q210 430 220 432 L220 540 Q210 544 202 540 Z"/>
+                    <!-- 股直肌（左） -->
+                    <path class="muscle" data-muscle-id="rectus_femoris" data-name="股直肌" data-name-en="Rectus Femoris"
+                          d="M220 432 Q232 430 244 432 L242 540 Q232 544 222 540 Z"/>
+                    <!-- 股外侧肌（左） -->
+                    <path class="muscle" data-muscle-id="vastus_lateralis" data-name="股外侧肌" data-name-en="Vastus Lateralis"
+                          d="M244 432 Q256 430 268 432 Q270 482 266 540 Q256 544 246 540 Z"/>
+
+                    <!-- 髌骨 -->
+                    <circle class="skeleton-line" cx="168" cy="552" r="6" fill="#3a4660"/>
+                    <circle class="skeleton-line" cx="232" cy="552" r="6" fill="#3a4660"/>
+
+                    <!-- ===== 小腿（右腿） ===== -->
+                    <!-- 胫骨前肌（右） -->
+                    <path class="muscle" data-muscle-id="tibialis_anterior" data-name="胫骨前肌" data-name-en="Tibialis Anterior"
+                          d="M150 562 Q146 600 148 660 Q150 710 156 740 L168 740 L168 562 Z"/>
+                    <!-- 趾长伸肌（右） -->
+                    <path class="muscle" data-muscle-id="extensor_digitorum" data-name="趾长伸肌" data-name-en="Extensor Digitorum Longus"
+                          d="M168 562 L182 562 L182 730 Q174 734 168 730 Z"/>
+                    <!-- 腓骨长肌（右） -->
+                    <path class="muscle" data-muscle-id="peroneus_longus" data-name="腓骨长肌" data-name-en="Peroneus Longus"
+                          d="M134 580 Q142 578 148 584 L148 660 Q142 664 134 660 Q130 620 134 580 Z"/>
+
+                    <!-- ===== 小腿（左腿） ===== -->
+                    <!-- 胫骨前肌（左） -->
+                    <path class="muscle" data-muscle-id="tibialis_anterior" data-name="胫骨前肌" data-name-en="Tibialis Anterior"
+                          d="M250 562 Q254 600 252 660 Q250 710 244 740 L232 740 L232 562 Z"/>
+                    <!-- 趾长伸肌（左） -->
+                    <path class="muscle" data-muscle-id="extensor_digitorum" data-name="趾长伸肌" data-name-en="Extensor Digitorum Longus"
+                          d="M232 562 L218 562 L218 730 Q226 734 232 730 Z"/>
+                    <!-- 腓骨长肌（左） -->
+                    <path class="muscle" data-muscle-id="peroneus_longus" data-name="腓骨长肌" data-name-en="Peroneus Longus"
+                          d="M266 580 Q258 578 252 584 L252 660 Q258 664 266 660 Q270 620 266 580 Z"/>
+                </svg>
+
+                <!-- ===== 背面视图 ===== -->
+                <svg id="back-view" class="body-svg hidden" viewBox="0 0 400 800" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="muscleGradBack" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#e74c3c"/>
+                            <stop offset="100%" stop-color="#922b21"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- 人体背景轮廓（同正面） -->
+                    <path class="body-outline" d="
+                        M200 18
+                        C 222 18 238 34 238 58
+                        C 238 72 232 84 224 92
+                        L 226 110
+                        C 226 118 222 124 214 128
+                        L 232 138
+                        C 256 144 274 156 286 176
+                        L 300 210
+                        L 308 270
+                        L 300 330
+                        L 294 360
+                        L 288 380
+                        C 286 396 280 408 270 416
+                        L 264 440
+                        L 270 500
+                        L 274 560
+                        L 272 620
+                        L 268 680
+                        L 264 740
+                        L 258 778
+                        L 244 782
+                        L 236 778
+                        L 230 740
+                        L 226 680
+                        L 224 620
+                        L 226 560
+                        L 222 500
+                        L 218 440
+                        L 214 410
+                        C 208 416 202 418 200 418
+                        C 198 418 192 416 186 410
+                        L 182 440
+                        L 178 500
+                        L 174 560
+                        L 176 620
+                        L 174 680
+                        L 170 740
+                        L 164 778
+                        L 156 782
+                        L 142 778
+                        L 136 740
+                        L 132 680
+                        L 128 620
+                        L 126 560
+                        L 130 500
+                        L 136 440
+                        L 130 416
+                        C 120 408 114 396 112 380
+                        L 106 360
+                        L 100 330
+                        L 92 270
+                        L 100 210
+                        L 114 176
+                        C 126 156 144 144 168 138
+                        L 186 128
+                        C 178 124 174 118 174 110
+                        L 176 92
+                        C 168 84 162 72 162 58
+                        C 162 34 178 18 200 18 Z"/>
+
+                    <!-- 中央脊柱参考线 -->
+                    <line class="skeleton-line" x1="200" y1="100" x2="200" y2="380"/>
+
+                    <!-- ===== 头部背面 ===== -->
+                    <!-- 枕额肌（枕腹） -->
+                    <path class="muscle" data-muscle-id="occipitalis" data-name="枕额肌（枕腹）" data-name-en="Occipitalis"
+                          d="M176 30 Q200 22 224 30 L224 56 Q200 50 176 56 Z"/>
+
+                    <!-- ===== 颈部背面 ===== -->
+                    <!-- 斜方肌（上部） -->
+                    <path class="muscle" data-muscle-id="trapezius_superior" data-name="斜方肌（上束）" data-name-en="Trapezius (Upper)"
+                          d="M176 96 Q200 90 224 96 L236 132 Q200 122 164 132 Z"/>
+                    <!-- 斜方肌（中部） -->
+                    <path class="muscle" data-muscle-id="trapezius_middle" data-name="斜方肌（中束）" data-name-en="Trapezius (Middle)"
+                          d="M164 132 Q200 122 236 132 L238 200 Q200 192 162 200 Z"/>
+                    <!-- 斜方肌（下部） -->
+                    <path class="muscle" data-muscle-id="trapezius_inferior" data-name="斜方肌（下束）" data-name-en="Trapezius (Lower)"
+                          d="M162 200 Q200 192 238 200 L232 248 Q200 256 168 248 Z"/>
+
+                    <!-- ===== 肩部背面 ===== -->
+                    <!-- 三角肌（后束） -->
+                    <path class="muscle" data-muscle-id="deltoid_posterior" data-name="三角肌（后束）" data-name-en="Deltoid (Posterior)"
+                          d="M162 138 Q146 146 138 168 Q134 192 144 210 L166 206 L172 152 Z"/>
+                    <path class="muscle" data-muscle-id="deltoid_posterior" data-name="三角肌（后束）" data-name-en="Deltoid (Posterior)"
+                          d="M238 138 Q254 146 262 168 Q266 192 256 210 L234 206 L228 152 Z"/>
+
+                    <!-- ===== 肩胛区 ===== -->
+                    <!-- 冈下肌 -->
+                    <path class="muscle" data-muscle-id="infraspinatus" data-name="冈下肌" data-name-en="Infraspinatus"
+                          d="M170 160 Q184 156 196 162 L196 196 Q184 200 170 196 Q166 180 170 160 Z"/>
+                    <path class="muscle" data-muscle-id="infraspinatus" data-name="冈下肌" data-name-en="Infraspinatus"
+                          d="M230 160 Q216 156 204 162 L204 196 Q216 200 230 196 Q234 180 230 160 Z"/>
+
+                    <!-- 小圆肌 -->
+                    <path class="muscle" data-muscle-id="teres_minor" data-name="小圆肌" data-name-en="Teres Minor"
+                          d="M170 196 Q178 194 186 198 L186 212 Q178 214 170 212 Z"/>
+                    <path class="muscle" data-muscle-id="teres_minor" data-name="小圆肌" data-name-en="Teres Minor"
+                          d="M230 196 Q222 194 214 198 L214 212 Q222 214 230 212 Z"/>
+
+                    <!-- 大圆肌 -->
+                    <path class="muscle" data-muscle-id="teres_major" data-name="大圆肌" data-name-en="Teres Major"
+                          d="M170 212 Q180 210 190 214 L190 232 Q180 234 170 232 Z"/>
+                    <path class="muscle" data-muscle-id="teres_major" data-name="大圆肌" data-name-en="Teres Major"
+                          d="M230 212 Q220 210 210 214 L210 232 Q220 234 230 232 Z"/>
+
+                    <!-- ===== 背部 ===== -->
+                    <!-- 背阔肌 -->
+                    <path class="muscle" data-muscle-id="latissimus_dorsi" data-name="背阔肌" data-name-en="Latissimus Dorsi"
+                          d="M168 232 Q184 226 200 230 Q216 226 232 232 L238 280 Q220 296 200 296 Q180 296 162 280 Z"/>
+
+                    <!-- 竖脊肌 -->
+                    <path class="muscle" data-muscle-id="erector_spinae" data-name="竖脊肌" data-name-en="Erector Spinae"
+                          d="M190 248 Q200 246 210 248 L210 350 Q200 354 190 350 Z"/>
+
+                    <!-- 腰方肌 -->
+                    <path class="muscle" data-muscle-id="quadratus_lumborum" data-name="腰方肌" data-name-en="Quadratus Lumborum"
+                          d="M174 296 Q184 294 190 300 L190 340 Q184 344 174 340 Z"/>
+                    <path class="muscle" data-muscle-id="quadratus_lumborum" data-name="腰方肌" data-name-en="Quadratus Lumborum"
+                          d="M226 296 Q216 294 210 300 L210 340 Q216 344 226 340 Z"/>
+
+                    <!-- ===== 上臂背面 ===== -->
+                    <!-- 肱三头肌 -->
+                    <path class="muscle" data-muscle-id="triceps_brachii" data-name="肱三头肌" data-name-en="Triceps Brachii"
+                          d="M148 218 Q138 250 136 290 Q136 322 144 342 L166 338 Q164 300 166 260 L170 222 Z"/>
+                    <path class="muscle" data-muscle-id="triceps_brachii" data-name="肱三头肌" data-name-en="Triceps Brachii"
+                          d="M252 218 Q262 250 264 290 Q264 322 256 342 L234 338 Q236 300 234 260 L230 222 Z"/>
+
+                    <!-- ===== 前臂背面 ===== -->
+                    <!-- 前臂伸肌群 -->
+                    <path class="muscle" data-muscle-id="forearm_extensors" data-name="前臂伸肌群" data-name-en="Forearm Extensors"
+                          d="M144 342 Q136 380 130 430 Q128 470 136 500 L160 496 Q160 450 164 400 L166 346 Z"/>
+                    <path class="muscle" data-muscle-id="forearm_extensors" data-name="前臂伸肌群" data-name-en="Forearm Extensors"
+                          d="M256 342 Q264 380 270 430 Q272 470 264 500 L240 496 Q240 450 236 400 L234 346 Z"/>
+
+                    <!-- ===== 髋部背面 ===== -->
+                    <!-- 臀中肌 -->
+                    <path class="muscle" data-muscle-id="gluteus_medius" data-name="臀中肌" data-name-en="Gluteus Medius"
+                          d="M158 372 Q172 368 188 374 L188 410 Q172 414 158 408 Q154 392 158 372 Z"/>
+                    <path class="muscle" data-muscle-id="gluteus_medius" data-name="臀中肌" data-name-en="Gluteus Medius"
+                          d="M242 372 Q228 368 212 374 L212 410 Q228 414 242 408 Q246 392 242 372 Z"/>
+
+                    <!-- 臀大肌 -->
+                    <path class="muscle" data-muscle-id="gluteus_maximus" data-name="臀大肌" data-name-en="Gluteus Maximus"
+                          d="M158 410 Q176 404 200 408 Q224 404 242 410 L244 452 Q224 460 200 458 Q176 460 156 452 Z"/>
+
+                    <!-- ===== 大腿背面（右腿：x≈128-200） ===== -->
+                    <!-- 股二头肌（右，外侧） -->
+                    <path class="muscle" data-muscle-id="biceps_femoris" data-name="股二头肌" data-name-en="Biceps Femoris"
+                          d="M132 460 Q128 510 134 540 Q146 544 158 540 L162 460 Q148 458 132 460 Z"/>
+                    <!-- 半腱肌（右，内侧偏中） -->
+                    <path class="muscle" data-muscle-id="semitendinosus" data-name="半腱肌" data-name-en="Semitendinosus"
+                          d="M162 460 Q172 458 182 462 L182 540 Q172 544 162 540 Z"/>
+                    <!-- 半膜肌（右，内侧靠中线） -->
+                    <path class="muscle" data-muscle-id="semimembranosus" data-name="半膜肌" data-name-en="Semimembranosus"
+                          d="M182 462 Q190 460 198 462 L198 540 Q190 544 182 540 Z"/>
+
+                    <!-- ===== 大腿背面（左腿：x≈200-272） ===== -->
+                    <!-- 半膜肌（左，内侧靠中线） -->
+                    <path class="muscle" data-muscle-id="semimembranosus" data-name="半膜肌" data-name-en="Semimembranosus"
+                          d="M202 462 Q210 460 218 462 L218 540 Q210 544 202 540 Z"/>
+                    <!-- 半腱肌（左，内侧偏中） -->
+                    <path class="muscle" data-muscle-id="semitendinosus" data-name="半腱肌" data-name-en="Semitendinosus"
+                          d="M218 462 Q228 458 238 460 L238 540 Q228 544 218 540 Z"/>
+                    <!-- 股二头肌（左，外侧） -->
+                    <path class="muscle" data-muscle-id="biceps_femoris" data-name="股二头肌" data-name-en="Biceps Femoris"
+                          d="M238 460 Q252 458 268 460 Q272 510 266 540 Q254 544 242 540 L238 460 Z"/>
+
+                    <!-- 髌骨 -->
+                    <circle class="skeleton-line" cx="168" cy="552" r="6" fill="#3a4660"/>
+                    <circle class="skeleton-line" cx="232" cy="552" r="6" fill="#3a4660"/>
+
+                    <!-- ===== 小腿背面（右腿） ===== -->
+                    <!-- 腓肠肌（右） -->
+                    <path class="muscle" data-muscle-id="gastrocnemius" data-name="腓肠肌" data-name-en="Gastrocnemius"
+                          d="M142 562 Q156 558 178 562 L180 654 Q160 660 144 654 Q138 610 142 562 Z"/>
+                    <!-- 比目鱼肌（右） -->
+                    <path class="muscle" data-muscle-id="soleus" data-name="比目鱼肌" data-name-en="Soleus"
+                          d="M146 648 Q160 644 180 648 L180 710 Q160 714 146 710 Z"/>
+                    <!-- 腓骨长肌（右，外侧） -->
+                    <path class="muscle" data-muscle-id="peroneus_longus_posterior" data-name="腓骨长肌" data-name-en="Peroneus Longus"
+                          d="M132 580 Q138 578 144 584 L144 660 Q138 664 132 660 Q128 620 132 580 Z"/>
+
+                    <!-- ===== 小腿背面（左腿） ===== -->
+                    <!-- 腓肠肌（左） -->
+                    <path class="muscle" data-muscle-id="gastrocnemius" data-name="腓肠肌" data-name-en="Gastrocnemius"
+                          d="M258 562 Q244 558 222 562 L220 654 Q240 660 256 654 Q262 610 258 562 Z"/>
+                    <!-- 比目鱼肌（左） -->
+                    <path class="muscle" data-muscle-id="soleus" data-name="比目鱼肌" data-name-en="Soleus"
+                          d="M254 648 Q240 644 220 648 L220 710 Q240 714 254 710 Z"/>
+                    <!-- 腓骨长肌（左，外侧） -->
+                    <path class="muscle" data-muscle-id="peroneus_longus_posterior" data-name="腓骨长肌" data-name-en="Peroneus Longus"
+                          d="M268 580 Q262 578 256 584 L256 660 Q262 664 268 660 Q272 620 268 580 Z"/>
+
+                    <!-- 跟腱 -->
+                    <path class="skeleton-line" d="M194 710 Q200 720 206 710 L204 750 Q200 758 196 750 Z" stroke-width="2"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 右侧信息面板 -->
+        <div class="info-panel">
+            <!-- 当前选中 -->
+            <div class="info-card selected-box">
+                <h3>当前选中</h3>
+                <div id="selected-content">
+                    <div class="selected-empty">将鼠标悬停在人体肌肉上查看详情<br>点击肌肉以选中</div>
+                </div>
+            </div>
+
+            <!-- 肌肉列表 -->
+            <div class="info-card">
+                <h3>肌肉列表 <span style="color:#5a6878;font-weight:400;font-size:11px;margin-left:auto;" id="list-count"></span></h3>
+                <div class="muscle-list" id="muscle-list"></div>
+            </div>
+
+            <!-- 使用说明 -->
+            <div class="info-card">
+                <h3>使用说明</h3>
+                <div class="legend">
+                    • <kbd>悬停</kbd> 肌肉区域显示名称<br>
+                    • <kbd>点击</kbd> 肌肉选中并高亮<br>
+                    • <kbd>标签</kbd> 切换内嵌文字标签<br>
+                    • <kbd>跳转</kbd> 按钮预留：填写 URL 后即可跳转到对应肌肉详情页
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-name" id="tt-name"></div>
+        <div class="tooltip-en" id="tt-en"></div>
+        <div class="tooltip-hint">点击选中 · ID: <span id="tt-id"></span></div>
+    </div>
+
+    <script>
+        // ===== 肌肉数据：后期跳转 URL 在此配置（id -> url） =====
+        const MUSCLE_LINKS = {
+            // 示例（取消注释并替换为真实页面）：
+            // 'pectoralis_major': 'muscle-detail/pectoralis.html',
+            // 'biceps_brachii': 'muscle-detail/biceps.html',
+        };
+
+        // ===== 状态 =====
+        let currentView = 'front';
+        let selectedMuscleId = null;
+        let labelsVisible = false;
+
+        // ===== 视图切换 =====
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.view === view);
+            });
+            document.getElementById('front-view').classList.toggle('hidden', view !== 'front');
+            document.getElementById('back-view').classList.toggle('hidden', view !== 'back');
+            resetSelection();
+            buildMuscleList();
+        }
+
+        // ===== Tooltip =====
+        const tooltip = document.getElementById('tooltip');
+        const ttName = document.getElementById('tt-name');
+        const ttEn = document.getElementById('tt-en');
+        const ttId = document.getElementById('tt-id');
+
+        function showTooltip(e, el) {
+            const name = el.getAttribute('data-name');
+            const en = el.getAttribute('data-name-en');
+            const id = el.getAttribute('data-muscle-id');
+            ttName.textContent = name;
+            ttEn.textContent = en;
+            ttId.textContent = id;
+            tooltip.classList.add('visible');
+            moveTooltip(e);
+        }
+        function moveTooltip(e) {
+            tooltip.style.left = e.clientX + 'px';
+            tooltip.style.top = e.clientY + 'px';
+        }
+        function hideTooltip() {
+            tooltip.classList.remove('visible');
+        }
+
+        // ===== 选中肌肉 =====
+        function selectMuscle(el) {
+            const id = el.getAttribute('data-muscle-id');
+            const name = el.getAttribute('data-name');
+            const en = el.getAttribute('data-name-en');
+
+            // 清除之前的高亮
+            document.querySelectorAll('.muscle.selected').forEach(m => m.classList.remove('selected'));
+            // 高亮所有同 id 的肌肉（左右对称）
+            document.querySelectorAll(`.muscle[data-muscle-id="${id}"]`).forEach(m => {
+                m.classList.add('selected');
+            });
+            selectedMuscleId = id;
+
+            // 更新信息面板
+            const hasLink = MUSCLE_LINKS[id];
+            document.getElementById('selected-content').innerHTML = `
+                <div class="selected-name">${name}</div>
+                <div class="selected-en">${en}</div>
+                <div class="selected-id">data-muscle-id: ${id}</div>
+                <button class="jump-btn" ${hasLink ? '' : 'disabled'} onclick="jumpToMuscle('${id}')">
+                    ${hasLink ? ' 查看详情页' : ' 跳转页面（待配置）'}
+                </button>
+            `;
+
+            // 高亮列表项
+            document.querySelectorAll('.list-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.muscleId === id);
+            });
+        }
+
+        function resetSelection() {
+            document.querySelectorAll('.muscle.selected').forEach(m => m.classList.remove('selected'));
+            selectedMuscleId = null;
+            document.getElementById('selected-content').innerHTML =
+                '<div class="selected-empty">将鼠标悬停在人体肌肉上查看详情<br>点击肌肉以选中</div>';
+            document.querySelectorAll('.list-item').forEach(item => item.classList.remove('active'));
+        }
+
+        // ===== 跳转（后期加装） =====
+        function jumpToMuscle(id) {
+            const url = MUSCLE_LINKS[id];
+            if (url) {
+                window.location.href = url;
+            } else {
+                console.log('[跳转预留] 肌肉ID:', id, '— 请在 MUSCLE_LINKS 中配置 URL');
+            }
+        }
+
+        // ===== 标签切换 =====
+        function toggleLabels() {
+            labelsVisible = !labelsVisible;
+            const svg = document.getElementById(currentView + '-view');
+            // 移除已有标签
+            svg.querySelectorAll('.dynamic-label').forEach(t => t.remove());
+            if (labelsVisible) {
+                document.querySelectorAll(`#${currentView}-view .muscle`).forEach(m => {
+                    const id = m.getAttribute('data-muscle-id');
+                    const name = m.getAttribute('data-name');
+                    // 只为每个 id 添加一个标签（避免左右重复）
+                    if (svg.querySelector(`.dynamic-label[data-for="${id}"]`)) return;
+                    try {
+                        const bbox = m.getBBox();
+                        const cx = bbox.x + bbox.width / 2;
+                        const cy = bbox.y + bbox.height / 2;
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.setAttribute('x', cx);
+                        text.setAttribute('y', cy);
+                        text.setAttribute('class', 'muscle-label dynamic-label');
+                        text.setAttribute('data-for', id);
+                        text.textContent = name.length > 4 ? name.slice(0, 4) : name;
+                        svg.appendChild(text);
+                    } catch (err) { /* ignore */ }
+                });
+            }
+        }
+
+        // ===== 构建肌肉列表 =====
+        function buildMuscleList() {
+            const svg = document.getElementById(currentView + '-view');
+            const seen = new Map();
+            svg.querySelectorAll('.muscle').forEach(m => {
+                const id = m.getAttribute('data-muscle-id');
+                if (!seen.has(id)) {
+                    seen.set(id, {
+                        name: m.getAttribute('data-name'),
+                        en: m.getAttribute('data-name-en')
+                    });
+                }
+            });
+            const list = document.getElementById('muscle-list');
+            list.innerHTML = '';
+            const entries = Array.from(seen.entries()).sort((a, b) => a[1].name.localeCompare(b[1].name, 'zh'));
+            entries.forEach(([id, info]) => {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.dataset.muscleId = id;
+                item.innerHTML = `<span>${info.name}</span><span class="list-item-en">${info.en}</span>`;
+                item.addEventListener('click', () => {
+                    const target = svg.querySelector(`.muscle[data-muscle-id="${id}"]`);
+                    if (target) selectMuscle(target);
+                });
+                list.appendChild(item);
+            });
+            document.getElementById('list-count').textContent = `共 ${entries.length} 块`;
+        }
+
+        // ===== 事件绑定 =====
+        function bindMuscleEvents() {
+            document.querySelectorAll('.muscle').forEach(m => {
+                m.addEventListener('mouseenter', e => showTooltip(e, m));
+                m.addEventListener('mousemove', moveTooltip);
+                m.addEventListener('mouseleave', hideTooltip);
+                m.addEventListener('click', () => selectMuscle(m));
+            });
+        }
+
+        // ===== 初始化 =====
+        bindMuscleEvents();
+        buildMuscleList();
+    </script>
+</body>
+</html>

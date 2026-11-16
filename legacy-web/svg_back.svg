@@ -1,0 +1,230 @@
+<svg viewBox="0 0 300 750" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <linearGradient id="sb" x1=".3" y1="0" x2=".8" y2="1"><stop offset="0%" stop-color="#f0d2b2"/><stop offset="100%" stop-color="#d8b490"/></linearGradient>
+  <linearGradient id="mb" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#e0a070"/><stop offset="100%" stop-color="#b87844"/></linearGradient>
+  <linearGradient id="mbl" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#eab080"/><stop offset="100%" stop-color="#c48854"/></linearGradient>
+  <linearGradient id="mbd" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#d09262"/><stop offset="100%" stop-color="#9e6834"/></linearGradient>
+  <linearGradient id="mbv" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#c48856"/><stop offset="100%" stop-color="#8e5828"/></linearGradient>
+  <radialGradient id="hlb" cx=".5" cy=".3" r=".65"><stop offset="0%" stop-color="#fff5e0" stop-opacity=".4"/><stop offset="100%" stop-color="#fff5e0" stop-opacity="0"/></radialGradient>
+  <filter id="msb"><feDropShadow dx="0" dy="1.2" stdDeviation=".8" flood-color="#5a3418" flood-opacity=".22"/></filter>
+</defs>
+
+<!-- 身体轮廓(背面) -->
+<g id="body-outline-back">
+  <ellipse cx="150" cy="46" rx="27" ry="32" fill="url(#sb)"/>
+  <ellipse cx="123" cy="48" rx="4" ry="7" fill="#d0a87e"/>
+  <ellipse cx="177" cy="48" rx="4" ry="7" fill="#d0a87e"/>
+  <path d="M128 68 Q150 80 172 68 Q162 76 150 78 Q138 76 128 68Z" fill="#d0a87e"/>
+  <path d="M137 80 L135 100 Q150 106 165 100 L163 80Z" fill="url(#sb)"/>
+
+  <!-- 躯干背 -->
+  <path d="
+    M94 124
+    C84 134 80 152 80 172
+    C80 202 84 232 90 258
+    C94 276 96 294 94 314
+    C90 336 90 358 96 378
+    C100 392 106 400 112 406
+    L112 406
+    C110 424 112 444 118 460
+    C124 472 132 480 140 486
+    L140 486
+    C136 504 134 524 136 546
+    C138 562 142 578 148 592
+    L148 592
+    Q140 612 136 638
+    Q134 664 136 688
+    L136 688
+    C134 700 134 714 138 726
+    L138 738
+    Q140 744 144 746
+    L150 746
+    C154 744 156 738 156 732
+    L156 716
+    Q158 694 156 672
+    L156 672
+    Q154 650 154 630
+    L154 594
+    L154 592
+    Q160 578 164 562
+    C166 546 166 528 162 510
+    L162 486
+    C170 480 178 472 184 460
+    C190 444 192 424 190 406
+    L190 406
+    C196 400 202 392 206 378
+    C212 358 212 336 208 314
+    C206 294 208 276 212 258
+    C218 232 222 202 222 172
+    C222 152 218 134 208 124
+    Z
+  " fill="url(#sb)"/>
+
+  <!-- 右臂 -->
+  <path d="M94 124 C84 128 76 138 72 154 C66 178 64 206 66 234 C68 258 74 278 82 294 C86 302 90 308 94 310 C98 306 100 298 100 290 C98 268 96 244 96 220 C96 198 96 176 98 156 C98 142 96 132 94 124Z" fill="url(#sb)"/>
+  <!-- 左臂 -->
+  <path d="M206 124 C216 128 224 138 228 154 C234 178 236 206 234 234 C232 258 226 278 218 294 C214 302 210 308 206 310 C202 306 200 298 200 290 C202 268 204 244 204 220 C204 198 204 176 202 156 C202 142 204 132 206 124Z" fill="url(#sb)"/>
+  <!-- 右前臂 -->
+  <path d="M94 310 C88 322 82 340 78 360 C74 382 72 404 74 424 C76 440 82 452 90 460 C96 464 102 460 106 452 C104 432 104 410 102 388 C100 368 98 348 96 332Z" fill="url(#sb)"/>
+  <!-- 左前臂 -->
+  <path d="M206 310 C212 322 218 340 222 360 C226 382 228 404 226 424 C224 440 218 452 210 460 C204 464 198 460 194 452 C196 432 196 410 198 388 C200 368 202 348 204 332Z" fill="url(#sb)"/>
+  <ellipse cx="88" cy="466" rx="10" ry="14" fill="#d0a87e"/>
+  <ellipse cx="212" cy="466" rx="10" ry="14" fill="#d0a87e"/>
+</g>
+
+<ellipse cx="150" cy="260" rx="46" ry="140" fill="url(#hlb)" opacity=".55"/>
+
+<!-- 肌肉层(背面) -->
+<g id="muscles-back">
+  <!-- 斜方肌(大菱形) -->
+  <path data-muscle="斜方肌" class="muscle-path" d="
+    M150 98
+    C130 102 108 116 94 138
+    C112 142 134 138 150 134
+    C166 138 188 142 206 138
+    C192 116 170 102 150 98Z
+  " fill="url(#mbv)" filter="url(#msb)"/>
+  <!-- 斜方肌(中下) -->
+  <path data-muscle="斜方肌" class="muscle-path" d="
+    M100 186
+    C120 170 140 164 150 162
+    C160 164 180 170 200 186
+    C190 210 172 222 150 218
+    C128 222 110 210 100 186Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".9"/>
+
+  <!-- 三角肌后束 右 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M94 138
+    C86 146 80 162 80 180
+    C84 194 92 200 98 194
+    C100 178 100 160 100 146Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 三角肌后束 左 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M206 138
+    C214 146 220 162 220 180
+    C216 194 208 200 202 194
+    C200 178 200 160 200 146Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 背阔肌 右 -->
+  <path data-muscle="背阔肌" class="muscle-path" d="
+    M98 218
+    C90 240 86 270 88 304
+    C98 322 118 326 136 312
+    C140 290 138 264 134 244
+    C128 232 114 224 100 218Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+  <!-- 背阔肌 左 -->
+  <path data-muscle="背阔肌" class="muscle-path" d="
+    M202 218
+    C210 240 214 270 212 304
+    C202 322 182 326 164 312
+    C160 290 162 264 166 244
+    C172 232 186 224 200 218Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+
+  <!-- 中背部(菱形肌) -->
+  <path data-muscle="中背部" class="muscle-path" d="
+    M130 218
+    C140 210 146 208 150 208
+    C154 208 160 210 170 218
+    C168 242 160 258 150 262
+    C140 258 132 242 130 218Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 下背部(竖脊肌) -->
+  <g data-muscle="下背部" class="muscle-path">
+    <path d="M140 310 C138 340 138 368 140 394 C144 404 150 406 152 398 C152 370 152 342 150 314Z" fill="url(#mbd)" filter="url(#msb)"/>
+    <path d="M160 310 C162 340 162 368 160 394 C156 404 150 406 148 398 C148 370 148 342 150 314Z" fill="url(#mbd)" filter="url(#msb)"/>
+  </g>
+
+  <!-- 肱三头肌 右 -->
+  <path data-muscle="肱三头肌" class="muscle-path" d="
+    M74 162
+    C70 178 68 202 70 228
+    C76 238 86 240 92 234
+    C92 214 90 194 90 176
+    C90 166 86 160 82 156Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 肱三头肌 左 -->
+  <path data-muscle="肱三头肌" class="muscle-path" d="
+    M226 162
+    C230 178 232 202 230 228
+    C224 238 214 240 208 234
+    C208 214 210 194 210 176
+    C210 166 214 160 218 156Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 前臂伸肌 右 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M84 326
+    C80 346 76 370 76 394
+    C80 410 90 416 96 408
+    C96 386 96 364 98 346
+    C96 336 90 330 86 326Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".85"/>
+  <!-- 前臂伸肌 左 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M216 326
+    C220 346 224 370 224 394
+    C220 410 210 416 204 408
+    C204 386 204 364 202 346
+    C204 336 210 330 214 326Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".85"/>
+
+  <!-- 臀大肌 右 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M118 448
+    C110 464 108 486 114 504
+    C132 512 148 502 152 488
+    C148 472 138 458 124 450Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+  <!-- 臀大肌 左 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M182 448
+    C190 464 192 486 186 504
+    C168 512 152 502 148 488
+    C152 472 162 458 176 450Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+
+  <!-- 腘绳肌 右 -->
+  <path data-muscle="腘绳肌" class="muscle-path" d="
+    M140 530
+    C136 552 134 578 134 606
+    C136 630 140 650 146 664
+    C150 668 154 662 154 652
+    C154 626 154 600 154 576
+    C154 556 154 540 154 528Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 腘绳肌 左 -->
+  <path data-muscle="腘绳肌" class="muscle-path" d="
+    M160 530
+    C164 552 166 578 166 606
+    C164 630 160 650 154 664
+    C150 668 146 662 146 652
+    C146 626 146 600 146 576
+    C146 556 146 540 146 528Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 小腿肌群(腓肠肌) 右 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M136 688
+    C132 704 130 720 132 732
+    C134 738 140 740 144 736
+    C146 726 146 714 146 700
+    C146 694 142 690 138 688Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <ellipse data-muscle="小腿肌群" class="muscle-path" cx="140" cy="704" rx="9" ry="12" fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 小腿肌群 左 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M164 688
+    C168 704 170 720 168 732
+    C166 738 160 740 156 736
+    C154 726 154 714 154 700
+    C154 694 158 690 162 688Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <ellipse data-muscle="小腿肌群" class="muscle-path" cx="160" cy="704" rx="9" ry="12" fill="url(#mb)" filter="url(#msb)"/>
+</g>
+</svg>

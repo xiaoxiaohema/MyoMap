@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 我的档案</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .profile-hero { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .avatar-lg { width: 76px; height: 76px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 8px 24px var(--accent-glow); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div class="card">
+        <div class="profile-hero">
+          <div class="avatar-lg"></div>
+          <div>
+            <div style="font-size:19px;font-weight:800;" id="uname"></div>
+            <div class="mute" style="font-size:13px;margin-top:5px;" id="uinfo"></div>
+          </div>
+          <div class="flex gap-8" style="margin-left:auto;" id="account-actions"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-4" style="margin-top:18px;" id="computed"></div>
+
+      <div class="grid grid-2" style="margin-top:18px;align-items:start;">
+        <div class="card">
+          <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="user"></i></span> 个人档案</div>
+          <div class="input-row">
+            <div class="field"><label class="label">性别</label><select class="select" id="p-gender"><option value="male">男</option><option value="female">女</option></select></div>
+            <div class="field"><label class="label">出生日期</label><input class="input" type="date" id="p-birth"></div>
+          </div>
+          <div class="input-row">
+            <div class="field"><label class="label">身高 (cm)</label><input class="input" type="number" id="p-height"></div>
+            <div class="field"><label class="label">体重 (kg)</label><input class="input" type="number" step="0.1" id="p-weight"></div>
+          </div>
+          <div class="field"><label class="label">健身目标</label><div class="chip-group" id="p-goal"></div></div>
+          <div class="field"><label class="label">健身经验</label><div class="chip-group" id="p-exp"></div></div>
+          <div class="field"><label class="label">活动水平</label><select class="select" id="p-activity"></select></div>
+          <button class="btn btn-primary btn-block btn-lg" id="btn-save"><i class="ic" data-ic="save"></i> 保存档案</button>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="calculator"></i></span> 身体指标解读</div>
+            <div id="interpret" class="mute" style="font-size:13px;line-height:1.9;"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="save"></i></span> 数据管理</div>
+            <div class="mute" style="font-size:12.5px;line-height:1.8;margin-bottom:14px;">本地优先：所有数据保存在你的浏览器中。建议定期导出备份（对应 SRS R-07）。</div>
+            <div class="flex flex-wrap gap-8">
+              <button class="btn btn-ghost" id="btn-export"><i class="ic" data-ic="download"></i> 导出数据 (JSON)</button>
+              <button class="btn btn-ghost" id="btn-import"><i class="ic" data-ic="upload"></i> 导入数据</button>
+              <button class="btn btn-danger" id="btn-clear"><i class="ic" data-ic="trash"></i> 清空我的数据</button>
+            </div>
+            <input type="file" id="import-file" accept="application/json" class="hidden">
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico">ℹ</span> 关于</div>
+            <div class="kv"><span class="k">系统版本</span><span class="v">MyoMap v1.0</span></div>
+            <div class="kv"><span class="k">架构</span><span class="v">本地优先 + 可选后端</span></div>
+            <div class="kv"><span class="k">动作库</span><span class="v" id="about-ex"></span></div>
+            <div class="kv"><span class="k">数据存储</span><span class="v">localStorage / MySQL</span></div>
+            <div class="kv"><span class="k">动态壁纸</span><span class="v"><a href="wallpaper/index.html" target="_blank" style="color:var(--accent-2);">打开 ›</a></span></div>
+            <div class="mute" style="font-size:11.5px;margin-top:14px;"><i class="ic" data-ic="alert"></i> 本系统不提供医疗建议，所有健康数据仅供参考。</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script>
+Common.shell({ active: 'profile', title: '我的档案', subtitle: '个人信息 · 身体指标 · 数据管理' });
+
+let profile = Store.getProfile();
+let goal = profile.goal, exp = profile.experience;
+
+function renderAccount() {
+  const u = Store.currentUser();
+  document.querySelector('.avatar-lg').textContent = Common.userInitial();
+  document.getElementById('uname').textContent = u.username;
+  document.getElementById('uinfo').textContent = (u.guest ? '游客模式 · 数据仅保存在本地' : (u.email || '本地账号')) +
+    ' · 注册于 ' + (u.loginAt ? Common.fmtDate(u.loginAt) : Common.fmtDate(new Date()));
+  document.getElementById('account-actions').innerHTML = u.guest
+    ? '<a class="btn btn-primary" href="login.html?next=profile.html">登录 / 注册</a>'
+    : '<button class="btn btn-ghost" id="btn-logout">退出登录</button>';
+  const lo = document.getElementById('btn-logout');
+  if (lo) lo.onclick = () => {
+    Common.confirmModal('退出登录', '确定退出当前账号吗？本地数据将保留。', () => {
+      Store.logout(); Store.loginAsGuest(); location.href = 'login.html';
+    }, '退出');
+  };
+}
+
+function renderComputed() {
+  const bmi = Common.calcBMI(profile.weight, profile.height);
+  const cat = Common.bmiCategory(bmi);
+  const bmr = Common.calcBMR(profile);
+  const tdee = Common.calcTDEE(profile);
+  const m = Common.macroTargets(profile);
+  document.getElementById('computed').innerHTML =
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="ruler"></i></span><span class="stat-val">' + (bmi || '—') + '</span><span class="stat-label">BMI <span class="tag ' + cat.cls + '" style="font-size:10px;">' + cat.label + '</span></span></div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="flame"></i></span><span class="stat-val">' + (bmr || '—') + '<small>kcal</small></span><span class="stat-label">基础代谢 BMR</span></div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="bolt"></i></span><span class="stat-val">' + (tdee || '—') + '<small>kcal</small></span><span class="stat-label">每日消耗 TDEE</span></div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="utensils"></i></span><span class="stat-val">' + m.kcal + '<small>kcal</small></span><span class="stat-label">建议摄入（' + profile.goal + '）</span></div>';
+
+  const age = Common.ageFromBirth(profile.birthdate);
+  document.getElementById('interpret').innerHTML =
+    '• 年龄：' + age + ' 岁 · 性别：' + (profile.gender === 'female' ? '女' : '男') + '<br>' +
+    '• BMI ' + (bmi || '—') + '（' + cat.label + '）<br>' +
+    '• 基础代谢 ' + (bmr || '—') + ' kcal，按活动水平估算每日总消耗 ' + (tdee || '—') + ' kcal<br>' +
+    '• 目标「' + profile.goal + '」建议每日摄入约 <b class="highlight-num">' + m.kcal + ' kcal</b><br>' +
+    '• 建议宏量：蛋白质 ' + m.protein + 'g · 碳水 ' + m.carb + 'g · 脂肪 ' + m.fat + 'g<br>' +
+    '• 公式：Mifflin-St Jeor（BMR） × 活动系数（TDEE）';
+}
+
+function renderForm() {
+  document.getElementById('p-gender').value = profile.gender;
+  document.getElementById('p-birth').value = profile.birthdate;
+  document.getElementById('p-height').value = profile.height;
+  document.getElementById('p-weight').value = profile.weight;
+  const g = document.getElementById('p-goal');
+  g.innerHTML = ['增肌', '减脂', '塑形', '维持'].map(x => '<span class="chip' + (x === goal ? ' active' : '') + '" data-v="' + x + '">' + x + '</span>').join('');
+  g.querySelectorAll('.chip').forEach(c => c.onclick = () => { g.querySelectorAll('.chip').forEach(x => x.classList.remove('active')); c.classList.add('active'); goal = c.dataset.v; });
+  const e = document.getElementById('p-exp');
+  e.innerHTML = ['新手', '进阶', '高级'].map(x => '<span class="chip' + (x === exp ? ' active' : '') + '" data-v="' + x + '">' + x + '</span>').join('');
+  e.querySelectorAll('.chip').forEach(c => c.onclick = () => { e.querySelectorAll('.chip').forEach(x => x.classList.remove('active')); c.classList.add('active'); exp = c.dataset.v; });
+  document.getElementById('p-activity').innerHTML = Common.ACTIVITY.map(a =>
+    '<option value="' + a.v + '"' + (Number(profile.activity) === a.v ? ' selected' : '') + '>' + a.label + '</option>').join('');
+}
+
+document.getElementById('btn-save').onclick = function () {
+  const height = Number(document.getElementById('p-height').value);
+  const weight = Number(document.getElementById('p-weight').value);
+  if (!height || !weight) { Common.toast('请填写身高与体重', 'warn'); return; }
+  profile = Store.saveProfile({
+    gender: document.getElementById('p-gender').value,
+    birthdate: document.getElementById('p-birth').value,
+    height: height, weight: weight,
+    goal: goal, experience: exp,
+    activity: Number(document.getElementById('p-activity').value)
+  });
+  Common.toast('档案已保存，身体指标已更新', 'ok');
+  renderComputed();
+};
+
+// 数据管理
+document.getElementById('btn-export').onclick = () => {
+  const data = {};
+  Object.values(Store.KEYS).forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v != null) data[k] = v;
+  });
+  // 包含按用户命名空间的数据
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k.indexOf('myomap:') === 0) data[k] = localStorage.getItem(k);
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'myomap-backup-' + Store.todayStr() + '.json';
+  a.click();
+  Common.toast('数据已导出', 'ok');
+};
+document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
+document.getElementById('import-file').onchange = function (e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      Object.keys(data).forEach(k => { if (k.indexOf('myomap:') === 0) localStorage.setItem(k, data[k]); });
+      Common.toast('数据导入成功，正在刷新…', 'ok');
+      setTimeout(() => location.reload(), 800);
+    } catch (err) { Common.toast('导入失败：文件格式错误', 'err'); }
+  };
+  reader.readAsText(f);
+};
+document.getElementById('btn-clear').onclick = () => {
+  Common.confirmModal('清空数据', '将清空当前账号的所有训练、身体与饮食数据（账号保留）。确定继续吗？', () => {
+    [Store.KEYS.profile, Store.KEYS.body, Store.KEYS.plans, Store.KEYS.logs, Store.KEYS.diet, Store.KEYS.chat, Store.KEYS.device, Store.KEYS.custom].forEach(k => {
+      localStorage.removeItem(k + ':' + Store.currentUser().id);
+    });
+    Common.toast('数据已清空', 'ok');
+    setTimeout(() => location.reload(), 700);
+  }, '清空');
+};
+
+document.getElementById('about-ex').textContent = (window.MYOMAP_EXERCISES || []).length + ' 个内置动作';
+
+renderAccount();
+renderForm();
+renderComputed();
+</script>
+</body>
+</html>

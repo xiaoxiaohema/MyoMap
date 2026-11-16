@@ -1,0 +1,97 @@
+{
+  "folders": [
+    { "name": "frontend", "path": "frontend" },
+    { "name": "backend", "path": "backend" },
+    { "name": "MyoMap（根）", "path": "." }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/target": true,
+      "**/.DS_Store": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/target": true,
+      "**/dist": true
+    },
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "disabled",
+    "files.associations": { "*.vue": "vue" }
+  },
+  "extensions": {
+    "recommendations": [
+      "vue.volar",
+      "vscjava.vscode-java-pack",
+      "vmware.vscode-boot-dev-pack",
+      "redhat.vscode-xml",
+      "cweijan.vscode-mysql-client2"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "1️⃣ 启动后端 (Spring Boot · 需 JDK17)",
+        "type": "shell",
+        "command": "JAVA_HOME=$(/usr/libexec/java_home -v 17) mvn spring-boot:run",
+        "options": { "cwd": "${workspaceFolder:backend}" },
+        "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+        "problemMatcher": []
+      },
+      {
+        "label": "2️⃣ 启动前端 (Vite Dev · :5173)",
+        "type": "shell",
+        "command": "npm run dev",
+        "options": { "cwd": "${workspaceFolder:frontend}" },
+        "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+        "problemMatcher": []
+      },
+      {
+        "label": "3️⃣ 启动 MySQL（若未运行）",
+        "type": "shell",
+        "command": "mysqladmin -uroot -p ping 2>/dev/null || brew services start mysql || /usr/local/mysql/support-files/mysql.server start",
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      },
+      {
+        "label": "4️⃣ 启动旧版静态站 (legacy-web · :8799)",
+        "type": "shell",
+        "command": "python3 -m http.server 8799 --bind 0.0.0.0",
+        "options": { "cwd": "${workspaceFolder:MyoMap（根）}/legacy-web" },
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔨 构建部署包 (deploy/build.sh → dist/)",
+        "type": "shell",
+        "command": "bash deploy/build.sh",
+        "options": { "cwd": "${workspaceFolder:MyoMap（根）}" },
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔍 查看端口状态 (5173 / 8799 / 8081 / 8080)",
+        "type": "shell",
+        "command": "for p in 5173 8799 8081 8080; do printf '%-6s ' $p; lsof -nP -iTCP:$p -sTCP:LISTEN 2>/dev/null | tail -1 | awk '{print $1, $2}' || echo '空闲'; done",
+        "options": { "cwd": "${workspaceFolder:MyoMap（根）}" },
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      },
+      {
+        "label": "☕ 重启后端常驻服务 (launchd)",
+        "type": "shell",
+        "command": "launchctl bootout gui/$(id -u)/com.myomap.backend 2>/dev/null; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.myomap.backend.plist",
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🌐 重启前端常驻服务 (launchd · :5173)",
+        "type": "shell",
+        "command": "launchctl bootout gui/$(id -u)/com.myomap.vue 2>/dev/null; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.myomap.vue.plist",
+        "presentation": { "panel": "dedicated", "reveal": "always" },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

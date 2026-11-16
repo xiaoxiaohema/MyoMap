@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 人体肌肉解剖图 - 交互式UI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: radial-gradient(ellipse at top, #1a2030 0%, #0a0e18 60%, #050810 100%);
+            color: #e8eef5;
+        }
+
+        /* 顶部导航 */
+        .top-bar {
+            background: rgba(15, 20, 32, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(80, 120, 180, 0.2);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 18px; font-weight: 700;
+        }
+        .brand-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .brand span { color: #e74c3c; }
+        .top-meta {
+            font-size: 12px; color: #6b7a90; letter-spacing: 1px;
+        }
+        .loading {
+            position: fixed; inset: 0;
+            background: #0a0e18;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            font-size: 16px; color: #8a9ab0;
+            transition: opacity 0.5s;
+        }
+        .loading.hidden { opacity: 0; pointer-events: none; }
+
+        /* 主容器 */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            height: calc(100vh - 61px);
+        }
+
+        /* 3D 舞台 */
+        .stage {
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a2238 0%, #080c18 80%);
+            overflow: hidden;
+        }
+        #three-canvas { display: block; width: 100%; height: 100%; }
+
+        /* 浮动工具栏 */
+        .stage-toolbar {
+            position: absolute;
+            top: 16px; left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 20, 32, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(80, 120, 180, 0.25);
+            border-radius: 12px;
+            padding: 8px;
+            z-index: 5;
+        }
+        .view-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #8a9ab0;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .view-btn:hover { color: #fff; background: rgba(255,255,255,0.06); }
+        .view-btn.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+        }
+
+        /* 底部提示条 */
+        .stage-hint {
+            position: absolute;
+            bottom: 16px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 20, 32, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(80, 120, 180, 0.2);
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: #8a9ab0;
+            display: flex;
+            gap: 18px;
+            z-index: 5;
+        }
+        .stage-hint kbd {
+            background: rgba(255,255,255,0.1);
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #e8eef5;
+            margin-right: 4px;
+        }
+
+        /* 旋转加载指示 */
+        .spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(231,76,60,0.3);
+            border-top-color: #e74c3c;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Tooltip */
+        .tooltip {
+            position: fixed;
+            background: rgba(10, 14, 24, 0.96);
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            padding: 10px 14px;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+            transform: translate(-50%, -130%);
+            transition: opacity 0.15s;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            min-width: 140px;
+        }
+        .tooltip.visible { opacity: 1; }
+        .tooltip-name {
+            font-size: 15px; font-weight: 700;
+            color: #ff6b4a; margin-bottom: 4px;
+        }
+        .tooltip-en { font-size: 11px; color: #8a9ab0; font-style: italic; }
+        .tooltip-hint {
+            font-size: 10px; color: #5a6878;
+            margin-top: 6px;
+            border-top: 1px solid rgba(138,154,176,0.2);
+            padding-top: 6px;
+        }
+
+        /* 右侧信息面板 */
+        .info-panel {
+            background: rgba(10, 14, 24, 0.6);
+            border-left: 1px solid rgba(80, 120, 180, 0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 18px;
+            overflow-y: auto;
+        }
+        .info-panel::-webkit-scrollbar { width: 6px; }
+        .info-panel::-webkit-scrollbar-thumb { background: rgba(138,154,176,0.3); border-radius: 3px; }
+
+        .info-card {
+            background: linear-gradient(180deg, rgba(20,28,44,0.7) 0%, rgba(10,14,24,0.7) 100%);
+            border: 1px solid rgba(80, 120, 180, 0.18);
+            border-radius: 14px;
+            padding: 18px;
+        }
+        .info-card h3 {
+            font-size: 12px; color: #8a9ab0;
+            font-weight: 600; letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .info-card h3::before {
+            content: '';
+            width: 3px; height: 13px;
+            background: #e74c3c; border-radius: 2px;
+        }
+
+        .selected-name { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .selected-en { font-size: 13px; color: #8a9ab0; font-style: italic; margin-bottom: 12px; }
+        .selected-id {
+            display: inline-block; font-size: 11px;
+            font-family: 'SF Mono', Consolas, monospace;
+            background: rgba(231,76,60,0.12); color: #ff6b4a;
+            padding: 3px 8px; border-radius: 4px;
+            border: 1px solid rgba(231,76,60,0.3);
+        }
+        .selected-empty {
+            color: #5a6878; font-size: 13px;
+            text-align: center; padding: 16px 0;
+            line-height: 1.7;
+        }
+        .jump-btn {
+            width: 100%; padding: 11px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border: none; border-radius: 10px;
+            color: #fff; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: all 0.25s;
+            margin-top: 12px;
+        }
+        .jump-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(231,76,60,0.4); }
+        .jump-btn:disabled {
+            background: rgba(255,255,255,0.06);
+            color: #5a6878; cursor: not-allowed;
+            transform: none; box-shadow: none;
+        }
+
+        .muscle-list {
+            max-height: 340px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .muscle-list::-webkit-scrollbar { width: 5px; }
+        .muscle-list::-webkit-scrollbar-thumb { background: rgba(138,154,176,0.3); border-radius: 3px; }
+        .list-item {
+            padding: 7px 11px; border-radius: 6px;
+            cursor: pointer; transition: background 0.15s;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px;
+        }
+        .list-item:hover { background: rgba(231,76,60,0.12); }
+        .list-item.active { background: rgba(231,76,60,0.2); color: #ff6b4a; }
+        .list-item-en { font-size: 11px; color: #6b7a90; font-style: italic; }
+
+        .legend { font-size: 12px; color: #6b7a90; line-height: 1.8; }
+        .legend kbd {
+            background: rgba(255,255,255,0.08);
+            padding: 1px 6px; border-radius: 3px;
+            font-size: 11px; color: #b8c4d4;
+        }
+
+        .stat-row {
+            display: flex; justify-content: space-between;
+            padding: 7px 0; font-size: 13px;
+            border-bottom: 1px solid rgba(80,120,180,0.1);
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #8a9ab0; }
+        .stat-value { color: #ff6b4a; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div><span class="spinner"></span>正在构建 3D 人体肌肉模型...</div>
+    </div>
+
+    <div class="top-bar">
+        <div class="brand">
+            <div class="brand-icon"></div>
+            <div>3D 医学人体<span>肌肉解剖图</span></div>
+        </div>
+        <div class="top-meta">INTERACTIVE 3D ANATOMY · 旋转 · 悬停 · 点击</div>
+    </div>
+
+    <div class="main">
+        <!-- 3D 舞台 -->
+        <div class="stage">
+            <canvas id="three-canvas"></canvas>
+
+            <div class="stage-toolbar">
+                <button class="view-btn active" data-view="front" onclick="setView('front')">正面</button>
+                <button class="view-btn" data-view="back" onclick="setView('back')">背面</button>
+                <button class="view-btn" data-view="left" onclick="setView('left')">左侧</button>
+                <button class="view-btn" data-view="right" onclick="setView('right')">右侧</button>
+                <button class="view-btn" data-view="top" onclick="setView('top')">俯视</button>
+                <button class="view-btn" onclick="resetView()"> 复位</button>
+            </div>
+
+            <div class="stage-hint">
+                <span><kbd>拖拽</kbd>旋转</span>
+                <span><kbd>滚轮</kbd>缩放</span>
+                <span><kbd>右键</kbd>平移</span>
+                <span><kbd>悬停</kbd>显示肌肉</span>
+                <span><kbd>点击</kbd>选中</span>
+            </div>
+        </div>
+
+        <!-- 右侧信息面板 -->
+        <div class="info-panel">
+            <div class="info-card">
+                <h3>当前选中</h3>
+                <div id="selected-content">
+                    <div class="selected-empty">将鼠标悬停在 3D 模型上查看肌肉<br>点击肌肉以选中</div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>视角与统计</h3>
+                <div class="stat-row"><span class="stat-label">肌肉总数</span><span class="stat-value" id="stat-total">--</span></div>
+                <div class="stat-row"><span class="stat-label">Mesh 数</span><span class="stat-value" id="stat-mesh">--</span></div>
+                <div class="stat-row"><span class="stat-label">当前视角</span><span class="stat-value" id="stat-view">正面</span></div>
+            </div>
+
+            <div class="info-card">
+                <h3>肌肉列表 <span style="color:#5a6878;font-weight:400;font-size:11px;margin-left:auto;" id="list-count"></span></h3>
+                <div class="muscle-list" id="muscle-list"></div>
+            </div>
+
+            <div class="info-card">
+                <h3>使用说明</h3>
+                <div class="legend">
+                    • <kbd>拖拽</kbd> 旋转模型查看任意角度<br>
+                    • <kbd>悬停</kbd> 肌肉高亮并显示名称<br>
+                    • <kbd>点击</kbd> 选中肌肉并查看详情<br>
+                    • <kbd>跳转</kbd> 按钮预留：在 MUSCLE_LINKS 配置 URL 后启用
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-name" id="tt-name"></div>
+        <div class="tooltip-en" id="tt-en"></div>
+        <div class="tooltip-hint">点击选中 · ID: <span id="tt-id"></span></div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ===== 跳转配置（后期加装 URL） =====
+        const MUSCLE_LINKS = {
+            // 示例：
+            // 'pectoralis_major': 'muscle-detail/pectoralis.html',
+            // 'biceps_brachii': 'muscle-detail/biceps.html',
+        };
+
+        // ===== 肌肉元数据 =====
+        const MUSCLE_META = {
+            head:                   { name: '头部肌群',     en: 'Head Muscles' },
+            sternocleidomastoid:    { name: '胸锁乳突肌',   en: 'Sternocleidomastoid' },
+            trapezius:              { name: '斜方肌',       en: 'Trapezius' },
+            deltoid:                { name: '三角肌',       en: 'Deltoid' },
+            pectoralis_major:       { name: '胸大肌',       en: 'Pectoralis Major' },
+            biceps_brachii:         { name: '肱二头肌',     en: 'Biceps Brachii' },
+            triceps_brachii:        { name: '肱三头肌',     en: 'Triceps Brachii' },
+            forearm_flexors:        { name: '前臂屈肌群',   en: 'Forearm Flexors' },
+            forearm_extensors:      { name: '前臂伸肌群',   en: 'Forearm Extensors' },
+            rectus_abdominis:       { name: '腹直肌',       en: 'Rectus Abdominis' },
+            obliquus_externus:      { name: '腹外斜肌',     en: 'Obliquus Externus' },
+            latissimus_dorsi:       { name: '背阔肌',       en: 'Latissimus Dorsi' },
+            erector_spinae:         { name: '竖脊肌',       en: 'Erector Spinae' },
+            gluteus_maximus:        { name: '臀大肌',       en: 'Gluteus Maximus' },
+            gluteus_medius:         { name: '臀中肌',       en: 'Gluteus Medius' },
+            tensor_fasciae_latae:   { name: '阔筋膜张肌',   en: 'Tensor Fasciae Latae' },
+            sartorius:              { name: '缝匠肌',       en: 'Sartorius' },
+            rectus_femoris:         { name: '股直肌',       en: 'Rectus Femoris' },
+            vastus_lateralis:       { name: '股外侧肌',     en: 'Vastus Lateralis' },
+            vastus_medialis:        { name: '股内侧肌',     en: 'Vastus Medialis' },
+            biceps_femoris:         { name: '股二头肌',     en: 'Biceps Femoris' },
+            tibialis_anterior:      { name: '胫骨前肌',     en: 'Tibialis Anterior' },
+            gastrocnemius:          { name: '腓肠肌',       en: 'Gastrocnemius' },
+            soleus:                 { name: '比目鱼肌',     en: 'Soleus' },
+        };
+
+        // ===== 场景初始化 =====
+        const canvas = document.getElementById('three-canvas');
+        const stage = canvas.parentElement;
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x080c18, 12, 28);
+
+        const camera = new THREE.PerspectiveCamera(45, stage.clientWidth / stage.clientHeight, 0.1, 100);
+        camera.position.set(0, 0.5, 9);
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(stage.clientWidth, stage.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // ===== 灯光 =====
+        const ambient = new THREE.AmbientLight(0x6080a0, 0.5);
+        scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+        keyLight.position.set(5, 8, 6);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(2048, 2048);
+        keyLight.shadow.camera.left = -6;
+        keyLight.shadow.camera.right = 6;
+        keyLight.shadow.camera.top = 8;
+        keyLight.shadow.camera.bottom = -4;
+        keyLight.shadow.bias = -0.0005;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0x88aaff, 0.5);
+        fillLight.position.set(-6, 3, 4);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xff6b4a, 0.6);
+        rimLight.position.set(0, 4, -6);
+        scene.add(rimLight);
+
+        // 地面（接收阴影，营造立体感）
+        const ground = new THREE.Mesh(
+            new THREE.CircleGeometry(8, 64),
+            new THREE.ShadowMaterial({ opacity: 0.35 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -3.2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // ===== 控制器 =====
+        const controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 0.3, 0);
+        controls.minDistance = 4;
+        controls.maxDistance = 18;
+        controls.maxPolarAngle = Math.PI * 0.95;
+
+        // ===== 肌肉材质工厂 =====
+        const COLOR_PALETTE = {
+            head: 0xb03a2e, neck: 0xc0392b, torso: 0xc0392b,
+            arm: 0xa93226, leg: 0x922b21, glute: 0xb03a2e
+        };
+
+        function makeMuscleMaterial(baseColor) {
+            return new THREE.MeshStandardMaterial({
+                color: baseColor,
+                roughness: 0.55,
+                metalness: 0.15,
+                emissive: 0x000000,
+                emissiveIntensity: 0
+            });
+        }
+
+        // 肌肉集合
+        const muscles = [];           // { mesh, id, name, en }
+        const muscleById = new Map(); // id -> [meshes]
+
+        function addMuscle(id, mesh) {
+            const meta = MUSCLE_META[id];
+            mesh.userData.muscleId = id;
+            mesh.userData.name = meta.name;
+            mesh.userData.en = meta.en;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            if (!muscleById.has(id)) muscleById.set(id, []);
+            muscleById.get(id).push(mesh);
+            muscles.push(mesh);
+            scene.add(mesh);
+            return mesh;
+        }
+
+        // 创建胶囊体肌肉
+        function capsule(radius, length, color) {
+            const geo = new THREE.CapsuleGeometry(radius, length, 8, 24);
+            return new THREE.Mesh(geo, makeMuscleMaterial(color));
+        }
+        function sphere(radius, color) {
+            const geo = new THREE.SphereGeometry(radius, 24, 20);
+            return new THREE.Mesh(geo, makeMuscleMaterial(color));
+        }
+        function box(w, h, d, color) {
+            const geo = new THREE.BoxGeometry(w, h, d, 4, 4, 4);
+            return new THREE.Mesh(geo, makeMuscleMaterial(color));
+        }
+
+        // ===== 构建人体肌肉模型 =====
+        // 坐标：y 向上，z 朝观察者（正面），x 右侧。人体高约 6.5 单位。
+
+        // --- 头部 ---
+        const head = sphere(0.42, COLOR_PALETTE.head);
+        head.position.set(0, 2.95, 0);
+        head.scale.set(0.9, 1.05, 1.0);
+        addMuscle('head', head);
+
+        // --- 颈部（胸锁乳突肌，左右两条） ---
+        [-0.13, 0.13].forEach(x => {
+            const m = capsule(0.1, 0.35, COLOR_PALETTE.neck);
+            m.position.set(x, 2.35, 0.05);
+            m.rotation.z = x > 0 ? -0.12 : 0.12;
+            addMuscle('sternocleidomastoid', m);
+        });
+
+        // --- 斜方肌（上背部/颈部到肩） ---
+        const traps = box(1.7, 0.35, 0.45, COLOR_PALETTE.torso);
+        traps.position.set(0, 2.05, -0.15);
+        traps.scale.set(1, 1, 0.8);
+        addMuscle('trapezius', traps);
+
+        // --- 三角肌（左右肩） ---
+        [-1.0, 1.0].forEach(x => {
+            const m = sphere(0.32, COLOR_PALETTE.arm);
+            m.position.set(x, 1.95, 0);
+            m.scale.set(1.0, 0.85, 1.0);
+            addMuscle('deltoid', m);
+        });
+
+        // --- 胸大肌（左右两块） ---
+        [-0.42, 0.42].forEach(x => {
+            const m = box(0.7, 0.55, 0.35, COLOR_PALETTE.torso);
+            m.position.set(x, 1.65, 0.28);
+            m.scale.set(1, 1, 0.9);
+            m.rotation.z = x > 0 ? -0.1 : 0.1;
+            addMuscle('pectoralis_major', m);
+        });
+
+        // --- 肱二头肌（左右上臂前侧） ---
+        [-1.15, 1.15].forEach(x => {
+            const m = capsule(0.18, 0.85, COLOR_PALETTE.arm);
+            m.position.set(x, 1.4, 0.12);
+            addMuscle('biceps_brachii', m);
+        });
+
+        // --- 肱三头肌（左右上臂后侧） ---
+        [-1.15, 1.15].forEach(x => {
+            const m = capsule(0.17, 0.85, COLOR_PALETTE.arm);
+            m.position.set(x, 1.4, -0.12);
+            addMuscle('triceps_brachii', m);
+        });
+
+        // --- 前臂屈肌群（左右前臂） ---
+        [-1.2, 1.2].forEach(x => {
+            const m = capsule(0.15, 0.75, COLOR_PALETTE.arm);
+            m.position.set(x, 0.5, 0.05);
+            m.scale.set(1, 1, 0.9);
+            addMuscle('forearm_flexors', m);
+        });
+        // --- 前臂伸肌群（左右前臂背侧） ---
+        [-1.2, 1.2].forEach(x => {
+            const m = capsule(0.14, 0.75, COLOR_PALETTE.arm);
+            m.position.set(x, 0.5, -0.08);
+            m.scale.set(1, 1, 0.9);
+            addMuscle('forearm_extensors', m);
+        });
+
+        // --- 腹直肌 ---
+        const abs = box(0.55, 1.15, 0.35, COLOR_PALETTE.torso);
+        abs.position.set(0, 0.9, 0.27);
+        abs.scale.set(1, 1, 0.9);
+        addMuscle('rectus_abdominis', abs);
+
+        // --- 腹外斜肌（左右） ---
+        [-0.5, 0.5].forEach(x => {
+            const m = box(0.35, 1.1, 0.32, COLOR_PALETTE.torso);
+            m.position.set(x, 0.9, 0.18);
+            m.scale.set(1, 1, 0.9);
+            addMuscle('obliquus_externus', m);
+        });
+
+        // --- 背阔肌（背部） ---
+        const lats = box(1.35, 1.0, 0.35, COLOR_PALETTE.torso);
+        lats.position.set(0, 1.3, -0.22);
+        lats.scale.set(1, 1, 0.7);
+        addMuscle('latissimus_dorsi', lats);
+
+        // --- 竖脊肌（脊柱两侧） ---
+        [-0.18, 0.18].forEach(x => {
+            const m = capsule(0.13, 1.3, COLOR_PALETTE.torso);
+            m.position.set(x, 1.35, -0.18);
+            addMuscle('erector_spinae', m);
+        });
+
+        // --- 臀大肌（左右） ---
+        [-0.32, 0.32].forEach(x => {
+            const m = sphere(0.38, COLOR_PALETTE.glute);
+            m.position.set(x, 0.05, -0.18);
+            m.scale.set(1.0, 0.85, 1.0);
+            addMuscle('gluteus_maximus', m);
+        });
+
+        // --- 臀中肌（左右，上方外侧） ---
+        [-0.55, 0.55].forEach(x => {
+            const m = sphere(0.25, COLOR_PALETTE.glute);
+            m.position.set(x, 0.28, -0.1);
+            m.scale.set(1.0, 0.7, 1.0);
+            addMuscle('gluteus_medius', m);
+        });
+
+        // --- 阔筋膜张肌（左右，髋外侧） ---
+        [-0.62, 0.62].forEach(x => {
+            const m = capsule(0.11, 0.45, COLOR_PALETTE.leg);
+            m.position.set(x, 0.15, 0.05);
+            addMuscle('tensor_fasciae_latae', m);
+        });
+
+        // --- 缝匠肌（左右，斜跨大腿前侧） ---
+        [-0.3, 0.3].forEach(x => {
+            const m = capsule(0.09, 1.3, COLOR_PALETTE.leg);
+            m.position.set(x, -0.55, 0.12);
+            m.rotation.z = x > 0 ? 0.25 : -0.25;
+            addMuscle('sartorius', m);
+        });
+
+        // --- 股直肌（左右大腿前中） ---
+        [-0.3, 0.3].forEach(x => {
+            const m = capsule(0.2, 1.15, COLOR_PALETTE.leg);
+            m.position.set(x, -0.6, 0.12);
+            addMuscle('rectus_femoris', m);
+        });
+
+        // --- 股外侧肌（左右大腿外侧） ---
+        [-0.58, 0.58].forEach(x => {
+            const m = capsule(0.22, 1.0, COLOR_PALETTE.leg);
+            m.position.set(x, -0.65, 0.02);
+            addMuscle('vastus_lateralis', m);
+        });
+
+        // --- 股内侧肌（左右大腿内侧） ---
+        [-0.18, 0.18].forEach(x => {
+            const m = capsule(0.18, 0.95, COLOR_PALETTE.leg);
+            m.position.set(x, -0.7, 0.08);
+            addMuscle('vastus_medialis', m);
+        });
+
+        // --- 股二头肌（左右大腿后外侧） ---
+        [-0.42, 0.42].forEach(x => {
+            const m = capsule(0.19, 1.1, COLOR_PALETTE.leg);
+            m.position.set(x, -0.65, -0.18);
+            addMuscle('biceps_femoris', m);
+        });
+
+        // --- 胫骨前肌（左右小腿前） ---
+        [-0.3, 0.3].forEach(x => {
+            const m = capsule(0.14, 0.95, COLOR_PALETTE.leg);
+            m.position.set(x, -2.0, 0.1);
+            addMuscle('tibialis_anterior', m);
+        });
+
+        // --- 腓肠肌（左右小腿后上，小腿肚） ---
+        [-0.3, 0.3].forEach(x => {
+            const m = sphere(0.22, COLOR_PALETTE.leg);
+            m.position.set(x, -1.9, -0.15);
+            m.scale.set(1.0, 1.3, 1.0);
+            addMuscle('gastrocnemius', m);
+        });
+
+        // --- 比目鱼肌（左右小腿后下） ---
+        [-0.3, 0.3].forEach(x => {
+            const m = capsule(0.16, 0.7, COLOR_PALETTE.leg);
+            m.position.set(x, -2.45, -0.12);
+            addMuscle('soleus', m);
+        });
+
+        // ===== 鼠标交互 / Raycaster =====
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredMesh = null;
+        let selectedId = null;
+
+        const tooltip = document.getElementById('tooltip');
+        const ttName = document.getElementById('tt-name');
+        const ttEn = document.getElementById('tt-en');
+        const ttId = document.getElementById('tt-id');
+
+        function setHoverEmissive(mesh, on) {
+            if (!mesh) return;
+            if (on) {
+                mesh.material.emissive.setHex(0xff6b4a);
+                mesh.material.emissiveIntensity = 0.55;
+            } else {
+                // 选中态保持高亮
+                if (mesh.userData.muscleId === selectedId) {
+                    mesh.material.emissive.setHex(0xe74c3c);
+                    mesh.material.emissiveIntensity = 0.4;
+                } else {
+                    mesh.material.emissive.setHex(0x000000);
+                    mesh.material.emissiveIntensity = 0;
+                }
+            }
+        }
+
+        function setHovered(mesh) {
+            if (hoveredMesh === mesh) return;
+            if (hoveredMesh) setHoverEmissive(hoveredMesh, false);
+            hoveredMesh = mesh;
+            if (hoveredMesh) setHoverEmissive(hoveredMesh, true);
+        }
+
+        function showTooltip(e, mesh) {
+            ttName.textContent = mesh.userData.name;
+            ttEn.textContent = mesh.userData.en;
+            ttId.textContent = mesh.userData.muscleId;
+            tooltip.classList.add('visible');
+            moveTooltip(e);
+        }
+        function moveTooltip(e) {
+            tooltip.style.left = e.clientX + 'px';
+            tooltip.style.top = e.clientY + 'px';
+        }
+        function hideTooltip() {
+            tooltip.classList.remove('visible');
+        }
+
+        function onPointerMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(muscles, false);
+
+            if (hits.length > 0) {
+                const hit = hits[0].object;
+                setHovered(hit);
+                showTooltip(e, hit);
+                canvas.style.cursor = 'pointer';
+            } else {
+                setHovered(null);
+                hideTooltip();
+                canvas.style.cursor = 'grab';
+            }
+        }
+
+        function onPointerDown(e) {
+            // 仅左键点击选中
+            if (e.button !== 0) return;
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(muscles, false);
+            if (hits.length > 0) {
+                selectMuscle(hits[0].object.userData.muscleId);
+            }
+        }
+
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointerleave', () => {
+            setHovered(null);
+            hideTooltip();
+        });
+
+        // ===== 选中逻辑 =====
+        function selectMuscle(id) {
+            // 清除旧选中
+            if (selectedId) {
+                muscleById.get(selectedId)?.forEach(m => setHoverEmissive(m, false));
+            }
+            selectedId = id;
+            muscleById.get(id)?.forEach(m => setHoverEmissive(m, false)); // 走选中分支
+
+            const meta = MUSCLE_META[id];
+            const hasLink = MUSCLE_LINKS[id];
+            document.getElementById('selected-content').innerHTML = `
+                <div class="selected-name">${meta.name}</div>
+                <div class="selected-en">${meta.en}</div>
+                <div class="selected-id">data-muscle-id: ${id}</div>
+                <button class="jump-btn" ${hasLink ? '' : 'disabled'} onclick="jumpToMuscle('${id}')">
+                    ${hasLink ? ' 查看详情页' : ' 跳转页面（待配置）'}
+                </button>
+            `;
+            document.querySelectorAll('.list-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.muscleId === id);
+            });
+
+            // 自动旋转视角到该肌肉方向（简单：无操作，保持当前视角）
+        }
+
+        window.jumpToMuscle = function (id) {
+            const url = MUSCLE_LINKS[id];
+            if (url) window.location.href = url;
+            else console.log('[跳转预留] 肌肉ID:', id, '— 请在 MUSCLE_LINKS 中配置 URL');
+        };
+
+        // ===== 视角预设 =====
+        const VIEWS = {
+            front:  { pos: [0, 0.5, 9],   target: [0, 0.3, 0] },
+            back:   { pos: [0, 0.5, -9],  target: [0, 0.3, 0] },
+            left:   { pos: [-9, 0.5, 0],  target: [0, 0.3, 0] },
+            right:  { pos: [9, 0.5, 0],   target: [0, 0.3, 0] },
+            top:    { pos: [0, 9, 0.5],   target: [0, 0.3, 0] }
+        };
+        let currentView = 'front';
+
+        function animateCamera(toPos, toTarget, duration = 800) {
+            const startPos = camera.position.clone();
+            const startTarget = controls.target.clone();
+            const endPos = new THREE.Vector3(...toPos);
+            const endTarget = new THREE.Vector3(...toTarget);
+            const startTime = performance.now();
+            function step(now) {
+                const t = Math.min((now - startTime) / duration, 1);
+                const ease = 1 - Math.pow(1 - t, 3); // easeOutCubic
+                camera.position.lerpVectors(startPos, endPos, ease);
+                controls.target.lerpVectors(startTarget, endTarget, ease);
+                controls.update();
+                if (t < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        window.setView = function (view) {
+            currentView = view;
+            const v = VIEWS[view];
+            animateCamera(v.pos, v.target);
+            document.querySelectorAll('.view-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.view === view);
+            });
+            document.getElementById('stat-view').textContent =
+                { front: '正面', back: '背面', left: '左侧', right: '右侧', top: '俯视' }[view];
+        };
+
+        window.resetView = function () {
+            setView('front');
+        };
+
+        // ===== 肌肉列表 =====
+        function buildMuscleList() {
+            const list = document.getElementById('muscle-list');
+            list.innerHTML = '';
+            const entries = Object.entries(MUSCLE_META)
+                .map(([id, m]) => ({ id, ...m }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+            entries.forEach(({ id, name, en }) => {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.dataset.muscleId = id;
+                item.innerHTML = `<span>${name}</span><span class="list-item-en">${en}</span>`;
+                item.addEventListener('click', () => selectMuscle(id));
+                list.appendChild(item);
+            });
+            document.getElementById('list-count').textContent = `共 ${entries.length} 块`;
+            document.getElementById('stat-total').textContent = entries.length;
+            document.getElementById('stat-mesh').textContent = muscles.length;
+        }
+
+        // ===== 窗口自适应 =====
+        function onResize() {
+            const w = stage.clientWidth, h = stage.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+        window.addEventListener('resize', onResize);
+
+        // ===== 渲染循环 =====
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // ===== 启动 =====
+        buildMuscleList();
+        animate();
+
+        // 隐藏 loading
+        setTimeout(() => {
+            document.getElementById('loading').classList.add('hidden');
+            onResize();
+        }, 400);
+    </script>
+</body>
+</html>

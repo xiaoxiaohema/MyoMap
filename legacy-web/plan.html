@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 训练计划</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .day-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .day-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .day-badge { padding: 4px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-2); font-size: 12px; font-weight: 700; }
+  .ex-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; background: var(--surface-1); font-size: 13px; }
+  .ex-row + .ex-row { margin-top: 6px; }
+  .ex-row .ex-idx { width: 20px; height: 20px; border-radius: 50%; background: var(--surface-3); color: var(--text-dim); font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ex-row .ex-nm { flex: 1; font-weight: 600; white-space: nowrap; }
+  .ex-row .ex-sr { color: var(--text-mute); font-size: 12px; text-align: right; }
+  .ex-row .ex-del { cursor: pointer; color: var(--text-mute); font-size: 15px; padding: 0 4px; }
+  .ex-row .ex-del:hover { color: var(--red); }
+  .tpl-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: all .25s; }
+  .tpl-card:hover { border-color: rgba(255,107,53,0.4); transform: translateY(-3px); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="gen">生成计划</button>
+        <button class="tab" data-tab="mine">我的计划</button>
+        <button class="tab" data-tab="tpl">计划模板</button>
+      </div>
+
+      <!-- 生成计划 -->
+      <section id="tab-gen">
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="body"></i></span> 训练部位
+              <a class="ct-sub" href="index.html" style="color:var(--accent-2);">去首页选择 ›</a>
+            </div>
+            <div id="sel-muscles" class="chip-group"></div>
+            <div class="divider"></div>
+
+            <div class="field">
+              <label class="label"><i class="ic" data-ic="target"></i> 训练目标</label>
+              <div class="chip-group" id="opt-goal"></div>
+            </div>
+            <div class="field">
+              <label class="label"><i class="ic" data-ic="bolt"></i> 难度等级</label>
+              <div class="chip-group" id="opt-diff"></div>
+            </div>
+            <div class="field">
+              <label class="label"><i class="ic" data-ic="calendar"></i> 每周训练天数</label>
+              <div class="chip-group" id="opt-freq"></div>
+            </div>
+            <div class="field">
+              <label class="label"><i class="ic" data-ic="calendar"></i> 计划周期</label>
+              <div class="chip-group" id="opt-weeks"></div>
+            </div>
+
+            <div class="card" style="background:rgba(46,204,113,0.06);border-color:rgba(46,204,113,0.2);margin-top:6px;">
+              <div class="flex items-center justify-between">
+                <span style="font-size:13px;font-weight:600;"><i class="ic" data-ic="watch"></i> 智能设备数据</span>
+                <button class="btn btn-sm btn-ghost" id="btn-device">连接设备</button>
+              </div>
+              <div id="device-info" class="mute" style="font-size:12px;margin-top:8px;">连接后计划将结合你的静息心率与睡眠评分自动调整强度</div>
+            </div>
+
+            <button class="btn btn-primary btn-block btn-lg" id="btn-generate" style="margin-top:18px;"><i class="ic" data-ic="rocket"></i> 生成训练计划</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="clipboard"></i></span> 计划预览 <span class="ct-sub" id="plan-sub"></span></div>
+            <div id="plan-result"><div class="empty"><div class="empty-ico"><i class="ic" data-ic="clipboard" data-ic-size="44"></i></div><div class="empty-title">配置参数后点击生成</div><div class="empty-hint">系统将按「复合动作优先」自动编排</div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 我的计划 -->
+      <section id="tab-mine" class="hidden">
+        <div id="my-plans"></div>
+      </section>
+
+      <!-- 计划模板 -->
+      <section id="tab-tpl" class="hidden">
+        <div class="grid grid-2" id="tpl-list"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script src="assets/js/device.js"></script>
+<script src="assets/js/planner.js"></script>
+<script>
+Common.shell({ active: 'plan', title: '训练计划', subtitle: '生成 · 管理 · 模板' });
+
+let muscles = JSON.parse(localStorage.getItem('myomap:selection') || '[]');
+let opts = { goal: Store.getProfile().goal || '增肌', difficulty: 2, frequency: 3, weeks: 4 };
+let currentPlan = null;
+
+// ---- tabs ----
+document.querySelectorAll('#tabs .tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('#tabs .tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  ['gen', 'mine', 'tpl'].forEach(k => document.getElementById('tab-' + k).classList.toggle('hidden', k !== t.dataset.tab));
+  if (t.dataset.tab === 'mine') renderMyPlans();
+  if (t.dataset.tab === 'tpl') renderTemplates();
+});
+
+// ---- 选项渲染 ----
+function chipGroup(el, items, activeVal, onPick) {
+  el.innerHTML = items.map(it => '<span class="chip' + (it.v === activeVal ? ' active' : '') + '" data-v="' + it.v + '">' + it.label + '</span>').join('');
+  el.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    el.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    onPick(c.dataset.v);
+  });
+}
+function buildOptions() {
+  chipGroup(document.getElementById('opt-goal'), [
+    { v: '增肌', label: '<i class="ic" data-ic="dumbbell"></i> 增肌' }, { v: '减脂', label: '<i class="ic" data-ic="flame"></i> 减脂' },
+    { v: '塑形', label: '<i class="ic" data-ic="sparkles"></i> 塑形' }, { v: '耐力', label: '<i class="ic" data-ic="activity"></i> 耐力' }
+  ], opts.goal, v => { opts.goal = v; });
+  chipGroup(document.getElementById('opt-diff'), [
+    { v: '1', label: '<i class="ic" data-ic="sprout"></i> 入门' }, { v: '2', label: '<i class="ic" data-ic="flame"></i> 进阶' }, { v: '3', label: '<i class="ic" data-ic="award"></i> 专业' }
+  ], String(opts.difficulty), v => { opts.difficulty = Number(v); });
+  chipGroup(document.getElementById('opt-freq'), [2, 3, 4, 5, 6].map(n => ({ v: String(n), label: n + ' 天' })), String(opts.frequency), v => { opts.frequency = Number(v); });
+  chipGroup(document.getElementById('opt-weeks'), [1, 4, 8, 12].map(n => ({ v: String(n), label: n + ' 周' })), String(opts.weeks), v => { opts.weeks = Number(v); });
+}
+buildOptions();
+
+function renderMuscles() {
+  const el = document.getElementById('sel-muscles');
+  if (!muscles.length) { el.innerHTML = '<span class="mute" style="font-size:12.5px;">未选择部位，将默认生成全身计划</span>'; return; }
+  el.innerHTML = muscles.map(m => '<span class="chip active" data-m="' + Common.esc(m) + '">' + Common.esc(m) + ' ✕</span>').join('');
+  el.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    muscles = muscles.filter(x => x !== c.dataset.m);
+    localStorage.setItem('myomap:selection', JSON.stringify(muscles));
+    renderMuscles();
+  });
+}
+renderMuscles();
+
+// ---- 生成 ----
+document.getElementById('btn-generate').onclick = async function () {
+  const btn = this;
+  btn.disabled = true; Common.setHTML(btn, '<i class="ic" data-ic="hourglass"></i> AI 正在生成（约 10-60 秒）…');
+  try {
+    const r = await MyPlanner.generateAsync({ muscles, goal: opts.goal, difficulty: opts.difficulty, frequency: opts.frequency, weeks: opts.weeks });
+    const plan = r.plan;
+    if (MyDevice.isConnected()) {
+      const ds = MyDevice.dailyStats();
+      plan.deviceAdjusted = true;
+      plan.deviceNote = '已结合手环数据：静息心率 ' + ds.heartRate.resting + 'bpm · 睡眠评分 ' + ds.sleep.score;
+      if (ds.heartRate.resting > 70) plan.intensityNote = '静息心率偏高，建议首周降低强度 10%';
+    }
+    currentPlan = plan;
+    renderPlan(plan, 'plan-result', true);
+    const label = r.source === 'ai' ? 'AI ' : (r.source === 'local' ? '本地 ' : '');
+    Common.toast(label + '计划已生成：' + plan.days.length + ' 个训练日', 'ok');
+  } catch (e) {
+    Common.toast('生成失败：' + (e && e.message || '未知错误'), 'err');
+  } finally {
+    btn.disabled = false; Common.setHTML(btn, '<i class="ic" data-ic="rocket"></i> 生成训练计划');
+  }
+};
+
+function renderPlan(plan, mountId, editable) {
+  const el = document.getElementById(mountId);
+  document.getElementById('plan-sub').textContent = plan.goal + ' · ' + plan.frequency + '天/周 · ' + plan.weeks + '周';
+  const totalEx = plan.days.reduce((s, d) => s + d.exercises.length, 0);
+  el.innerHTML =
+    '<div class="card" style="background:linear-gradient(135deg,rgba(255,107,53,0.12),rgba(255,140,66,0.04));border-color:rgba(255,107,53,0.3);">' +
+      '<div class="flex items-center justify-between flex-wrap gap-8">' +
+        '<div><div style="font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;">' + Common.esc(plan.name) +
+          (plan.source === 'ai' ? '<span class="tag tag-accent">AI 生成</span>' : (plan.source === 'template' ? '<span class="tag">模板</span>' : '')) + '</div>' +
+        '<div class="mute" style="font-size:12px;margin-top:4px;">' + plan.days.length + ' 个训练日 · 共 ' + totalEx + ' 个动作 · ' + plan.weeks + ' 周</div></div>' +
+        '<div class="flex gap-8">' +
+          (editable ? '<button class="btn btn-sm btn-ghost" id="btn-save-plan"><i class="ic" data-ic="save"></i> 保存计划</button>' : '') +
+          '<button class="btn btn-sm btn-primary" id="btn-start-plan">▶ 开始训练</button>' +
+        '</div>' +
+      '</div>' +
+      (plan.deviceNote ? '<div style="margin-top:12px;font-size:12px;color:var(--green-ink);"><i class="ic" data-ic="watch"></i> ' + Common.esc(plan.deviceNote) + (plan.intensityNote ? ' · ' + Common.esc(plan.intensityNote) : '') + '</div>' : '') +
+    '</div>' +
+    '<div class="grid grid-2" style="margin-top:16px;">' +
+      plan.days.map((d, di) =>
+        '<div class="day-card">' +
+          '<div class="day-head"><span class="day-badge">' + Common.esc(d.day) + '</span>' +
+            '<span style="font-weight:700;font-size:14px;">' + Common.esc(d.name) + '</span>' +
+            '<span class="mute" style="margin-left:auto;font-size:12px;">' + d.exercises.length + ' 动作</span>' +
+            (editable ? '<button class="btn btn-sm btn-ghost" data-add="' + di + '">＋</button>' : '') +
+          '</div>' +
+          d.exercises.map((e, ei) =>
+            '<div class="ex-row"><span class="ex-idx">' + (ei + 1) + '</span>' +
+              '<span class="ex-nm">' + Common.esc(e.name) + '</span>' +
+              '<span class="ex-sr">' + e.sets + '组 × ' + e.reps + ' · 休息' + e.rest + 's</span>' +
+              (editable ? '<span class="ex-del" data-del="' + di + '-' + ei + '">✕</span>' : '') +
+            '</div>').join('') +
+        '</div>').join('') +
+    '</div>' +
+    ((plan.tips && plan.tips.length)
+      ? ('<div class="card" style="margin-top:16px;"><div class="card-title" style="font-size:13.5px;"><i class="ic" data-ic="bulb"></i> 训练建议</div>' +
+         '<div style="font-size:13px;line-height:1.9;color:var(--text-dim);">' + plan.tips.map(t => '· ' + Common.esc(t)).join('<br>') + '</div></div>')
+      : '');
+
+  if (editable) {
+    el.querySelector('#btn-save-plan').onclick = () => savePlan(plan);
+    el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+      const p = b.dataset.del.split('-').map(Number);
+      plan.days[p[0]].exercises.splice(p[1], 1);
+      renderPlan(plan, mountId, true);
+    });
+    el.querySelectorAll('[data-add]').forEach(b => b.onclick = () => addExerciseToDay(plan, Number(b.dataset.add), mountId));
+  }
+  el.querySelector('#btn-start-plan').onclick = () => startPlan(plan);
+}
+
+function addExerciseToDay(plan, di, mountId) {
+  const day = plan.days[di];
+  const pool = Common.sortByCompound(
+    Common.allExercises().filter(e => day.focus.indexOf(e.muscle) >= 0 && !day.exercises.some(x => x.name === e.name))
+  ).slice(0, 60);
+  const m = Common.openModal(
+    '<div class="modal-title">＋ 添加动作到 ' + Common.esc(day.name) + '</div>' +
+    '<div class="modal-sub">从动作库中选择（已按复合动作优先）</div>' +
+    '<input class="input" id="pick-q" placeholder=" 搜索…" style="margin-bottom:12px;">' +
+    '<div id="pick-list" style="max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>');
+  const listEl = m.el.querySelector('#pick-list');
+  function paint(q) {
+    q = (q || '').toLowerCase();
+    const list = pool.filter(e => !q || e.name.toLowerCase().indexOf(q) >= 0 || (e.en || '').toLowerCase().indexOf(q) >= 0);
+    listEl.innerHTML = list.length ? list.map(e =>
+      '<div class="ex-row" data-name="' + Common.esc(e.name) + '" style="cursor:pointer;">' +
+        '<span class="ex-nm">' + Common.esc(e.name) + '</span>' +
+        '<span class="tag tag-accent">' + Common.esc(e.muscle) + '</span>' +
+        '<span class="ex-sr">' + Common.esc(e.difficulty) + '</span></div>').join('')
+      : '<div class="mute" style="padding:20px;text-align:center;">无匹配动作</div>';
+    listEl.querySelectorAll('[data-name]').forEach(r => r.onclick = () => {
+      day.exercises.push({ name: r.dataset.name, muscle: Common.findExercise(r.dataset.name).muscle, sets: plan.scheme.sets, reps: plan.scheme.reps, rest: plan.scheme.rest });
+      m.close();
+      renderPlan(plan, mountId, true);
+    });
+  }
+  paint('');
+  m.el.querySelector('#pick-q').addEventListener('input', Common.debounce(e => paint(e.target.value), 180));
+}
+
+function savePlan(plan) {
+  if (!Common.guardLogin('训练计划')) return;
+  Store.savePlan({
+    id: plan.id, name: plan.name, goal: plan.goal, difficulty: plan.difficulty,
+    frequency: plan.frequency, weeks: plan.weeks, muscles: plan.muscles,
+    days: plan.days, source: plan.source
+  });
+  Common.toast('计划已保存到「我的计划」', 'ok');
+}
+
+function startPlan(plan) {
+  if (!Common.guardLogin('训练记录')) return;
+  const day = plan.days[0];
+  const queue = day.exercises.map(e => ({ name: e.name, sets: e.sets, reps: e.reps, rest: e.rest }));
+  localStorage.setItem('myomap:workoutQueue', JSON.stringify(queue));
+  localStorage.setItem('myomap:workoutPlanName', plan.name + ' · ' + day.name);
+  location.href = 'workout.html';
+}
+
+// ---- 我的计划 ----
+function renderMyPlans() {
+  const plans = Store.getPlans();
+  const el = document.getElementById('my-plans');
+  if (!plans.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="inbox" data-ic-size="44"></i></div><div class="empty-title">还没有保存的计划</div><div class="empty-hint">在「生成计划」中生成并保存，或使用计划模板</div></div>';
+    return;
+  }
+  el.innerHTML = plans.map(p =>
+    '<div class="card" style="margin-bottom:16px;">' +
+      '<div class="flex items-center justify-between flex-wrap gap-12">' +
+        '<div><div style="font-size:16px;font-weight:700;">' + Common.esc(p.name) + '</div>' +
+          '<div class="flex flex-wrap gap-8" style="margin-top:8px;">' +
+            '<span class="tag tag-accent">' + Common.esc(p.goal) + '</span>' +
+            '<span class="tag">' + p.frequency + '天/周</span>' +
+            '<span class="tag">' + p.weeks + '周</span>' +
+            '<span class="tag">' + (p.days ? p.days.length : 0) + ' 个训练日</span>' +
+          '</div></div>' +
+        '<div class="flex gap-8">' +
+          '<button class="btn btn-sm btn-ghost" data-view="' + p.id + '">查看</button>' +
+          '<button class="btn btn-sm btn-primary" data-start="' + p.id + '">开始</button>' +
+          '<button class="btn btn-sm btn-danger" data-del="' + p.id + '">删除</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>').join('');
+
+  el.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
+    const p = Store.getPlan(b.dataset.view);
+    const m = Common.openModal('<div class="modal-title">' + Common.esc(p.name) + '</div>' +
+      '<div class="modal-sub">' + Common.esc(p.goal) + ' · ' + p.frequency + '天/周 · ' + p.weeks + '周</div>' +
+      (p.days || []).map(d => '<div class="day-card" style="margin-bottom:12px;"><div class="day-head"><span class="day-badge">' + Common.esc(d.day) + '</span><span style="font-weight:700;">' + Common.esc(d.name) + '</span></div>' +
+        d.exercises.map((e, i) => '<div class="ex-row"><span class="ex-idx">' + (i + 1) + '</span><span class="ex-nm">' + Common.esc(e.name) + '</span><span class="ex-sr">' + e.sets + '组 × ' + e.reps + '</span></div>').join('') + '</div>').join(''), { large: true });
+  });
+  el.querySelectorAll('[data-start]').forEach(b => b.onclick = () => {
+    const p = Store.getPlan(b.dataset.start);
+    startPlan(p);
+  });
+  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    Common.confirmModal('删除计划', '确定删除该训练计划吗？此操作不可恢复。', () => {
+      Store.deletePlan(b.dataset.del); renderMyPlans(); Common.toast('已删除', 'ok');
+    }, '删除');
+  });
+}
+
+// ---- 模板 ----
+function renderTemplates() {
+  const el = document.getElementById('tpl-list');
+  el.innerHTML = MyPlanner.templates().map(t =>
+    '<div class="tpl-card">' +
+      '<div style="font-size:16px;font-weight:700;">' + Common.esc(t.name) + '</div>' +
+      '<div class="mute" style="font-size:12.5px;margin:6px 0 12px;">' + Common.esc(t.desc) + '</div>' +
+      '<div class="flex flex-wrap gap-8" style="margin-bottom:14px;">' +
+        '<span class="tag tag-accent">' + Common.esc(t.goal) + '</span>' +
+        '<span class="tag">' + t.frequency + '天/周</span>' +
+        '<span class="tag">' + (t.difficulty === 1 ? '入门' : t.difficulty === 2 ? '进阶' : '专业') + '</span>' +
+      '</div>' +
+      '<div class="mute" style="font-size:12px;margin-bottom:14px;">目标部位：' + t.muscles.map(Common.esc).join(' · ') + '</div>' +
+      '<button class="btn btn-primary btn-block" data-tpl="' + t.key + '">使用此模板</button>' +
+    '</div>').join('');
+  el.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => {
+    if (!Common.guardLogin('训练计划')) return;
+    const t = MyPlanner.templates().find(x => x.key === b.dataset.tpl);
+    const plan = MyPlanner.fromTemplate(t);
+    Store.savePlan({ name: plan.name, goal: plan.goal, difficulty: plan.difficulty, frequency: plan.frequency, weeks: plan.weeks, muscles: plan.muscles, days: plan.days, source: 'template' });
+    Common.toast('已应用模板：' + t.name, 'ok');
+    document.querySelector('#tabs .tab[data-tab="mine"]').click();
+  });
+}
+
+// ---- 设备 ----
+document.getElementById('btn-device').onclick = async function () {
+  if (MyDevice.isConnected()) {
+    const ds = MyDevice.dailyStats();
+    document.getElementById('device-info').innerHTML = '<i class="ic" data-ic="checkCircle"></i> 已连接 · 静息心率 ' + ds.heartRate.resting + 'bpm · 睡眠评分 ' + ds.sleep.score + ' · 今日步数 ' + ds.steps.toLocaleString();
+    Common.toast('设备已连接', 'ok');
+    return;
+  }
+  this.textContent = '连接中…';
+  await MyDevice.connect();
+  this.textContent = '已连接 ✓';
+  const ds = MyDevice.dailyStats();
+  document.getElementById('device-info').innerHTML = '<i class="ic" data-ic="checkCircle"></i> 已连接 · 静息心率 ' + ds.heartRate.resting + 'bpm · 睡眠评分 ' + ds.sleep.score + ' · 今日步数 ' + ds.steps.toLocaleString();
+  Common.toast('设备连接成功', 'ok');
+};
+if (MyDevice.isConnected()) {
+  const ds = MyDevice.dailyStats();
+  document.getElementById('btn-device').textContent = '已连接 ✓';
+  document.getElementById('device-info').innerHTML = '<i class="ic" data-ic="checkCircle"></i> 已连接 · 静息心率 ' + ds.heartRate.resting + 'bpm · 睡眠评分 ' + ds.sleep.score;
+}
+
+// 若从动作库/首页带来草稿动作，自动生成
+(function () {
+  const draft = JSON.parse(localStorage.getItem('myomap:draftExercises') || '[]');
+  if (draft.length && !currentPlan) {
+    Common.toast('已载入 ' + draft.length + ' 个草稿动作，点击「生成训练计划」', 'warn');
+  }
+})();
+</script>
+</body>
+</html>

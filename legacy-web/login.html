@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 登录</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  body { overflow: hidden; }
+  .auth { display: grid; grid-template-columns: 1.05fr 0.95fr; min-height: 100vh; }
+  .auth-visual {
+    position: relative; overflow: hidden;
+    background: #05070d url('wallpaper/assets/fitness-lines.jpg') center / cover no-repeat;
+    display: flex; flex-direction: column; justify-content: center; padding: 56px;
+  }
+  .auth-visual::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(120deg, rgba(5,8,14,0.82), rgba(5,8,14,0.45) 60%, rgba(255,107,53,0.12));
+    backdrop-filter: blur(1px);
+  }
+  .auth-visual > * { position: relative; z-index: 1; }
+  .auth-visual .av-logo { font-family: Georgia, 'Songti SC', serif; font-style: italic; font-size: 40px; font-weight: 700; background: linear-gradient(135deg,#ff8c52,#ffc59b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .auth-visual .av-title { font-size: 30px; font-weight: 800; margin-top: 26px; line-height: 1.35; }
+  .auth-visual .av-desc { color: rgba(255,255,255,0.7); margin-top: 16px; font-size: 14.5px; line-height: 1.9; max-width: 420px; }
+  .auth-visual .av-feats { margin-top: 34px; display: flex; flex-direction: column; gap: 12px; }
+  .auth-visual .av-feat { display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.82); font-size: 14px; }
+  .auth-visual .av-feat i { width: 30px; height: 30px; border-radius: 9px; background: rgba(255,107,53,0.18); display: flex; align-items: center; justify-content: center; font-style: normal; }
+
+  .auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px 28px; overflow-y: auto; }
+  .auth-box { width: 100%; max-width: 400px; }
+  .auth-tabs { display: flex; background: var(--surface-2); border-radius: 12px; padding: 4px; margin-bottom: 26px; }
+  .auth-tabs button { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-dim); font-size: 14px; font-weight: 600; border-radius: 9px; cursor: pointer; transition: all .22s; }
+  .auth-tabs button.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); box-shadow: 0 4px 14px var(--accent-glow); }
+  .auth-hint { text-align: center; color: var(--text-mute); font-size: 12.5px; margin-top: 18px; line-height: 1.8; }
+  .auth-hint b { color: var(--accent-2); }
+  .guest-link { text-align: center; margin-top: 16px; }
+  .err { color: var(--red-ink); font-size: 12.5px; min-height: 18px; margin-top: 4px; }
+  .captcha-row { display: flex; gap: 10px; align-items: stretch; }
+  .captcha-row .input { flex: 1; }
+  .captcha-box {
+    flex-shrink: 0; min-width: 118px; padding: 0 14px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 11px;
+    background: var(--surface-2); color: var(--text);
+    font-size: 16px; font-weight: 700; letter-spacing: 1px; font-family: ui-monospace, Menlo, monospace;
+  }
+  .captcha-box:hover { border-color: var(--accent); color: var(--accent-2); }
+  .pw-meter { height: 5px; border-radius: 4px; background: var(--surface-3); overflow: hidden; margin: -6px 0 12px; }
+  .pw-meter > i { display: block; height: 100%; width: 0; border-radius: 4px; transition: width .25s, background .25s; }
+  @media (max-width: 900px) { .auth { grid-template-columns: 1fr; } .auth-visual { display: none; } }
+</style>
+</head>
+<body>
+<div class="auth">
+  <div class="auth-visual">
+    <div class="av-logo">MyoMap</div>
+    <div class="av-title">懂你的身体 · 随你的节奏<br>护你的隐私</div>
+    <div class="av-desc">本地优先、AI 驱动、多源数据融合的智能健身伴侣。从计划制定到动作指导、数据追踪与饮食管理，全链路陪伴你的训练。</div>
+    <div class="av-feats">
+      <div class="av-feat"><i><i class="ic" data-ic="body"></i></i> 3D / SVG 人体交互式部位选择</div>
+      <div class="av-feat"><i><i class="ic" data-ic="clipboard"></i></i> 个性化训练计划与记录</div>
+      <div class="av-feat"><i><i class="ic" data-ic="chart"></i></i> 体重 / 体成分 / 围度趋势追踪</div>
+      <div class="av-feat"><i><i class="ic" data-ic="nutrition"></i></i> AI 饮食识别与营养规划</div>
+    </div>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="active" data-tab="login">登录</button>
+        <button data-tab="register">注册</button>
+      </div>
+
+      <!-- 登录 -->
+      <form id="form-login">
+        <div class="field"><label class="label">用户名</label><input class="input" id="li-user" placeholder="请输入用户名" autocomplete="username"></div>
+        <div class="field"><label class="label">密码</label><input class="input" id="li-pass" type="password" placeholder="请输入密码" autocomplete="current-password"></div>
+        <div class="flex items-center justify-between" style="margin-bottom:16px;">
+          <label class="checkbox"><input type="checkbox" id="li-remember" checked><span>记住我</span></label>
+          <span class="mute" style="font-size:12px;">数据仅保存在本地</span>
+        </div>
+        <div class="err" id="li-err"></div>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">登录</button>
+      </form>
+
+      <!-- 注册 -->
+      <form id="form-register" class="hidden">
+        <div class="field"><label class="label">用户名</label><input class="input" id="rg-user" placeholder="3-20 位字母 / 数字 / 下划线" autocomplete="username"></div>
+        <div class="field"><label class="label">邮箱（可选）</label><input class="input" id="rg-email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+        <div class="field"><label class="label">密码</label><input class="input" id="rg-pass" type="password" placeholder="至少 8 位，含字母和数字" autocomplete="new-password"></div>
+        <div class="pw-meter" id="rg-pw-meter"><i></i></div>
+        <div class="field"><label class="label">确认密码</label><input class="input" id="rg-pass2" type="password" placeholder="再次输入密码" autocomplete="new-password"></div>
+        <div class="field" id="rg-captcha-field">
+          <label class="label">验证码</label>
+          <div class="captcha-row">
+            <input class="input" id="rg-captcha" placeholder="填写计算结果" inputmode="numeric" autocomplete="off" maxlength="4">
+            <button type="button" class="captcha-box" id="rg-captcha-q" title="点击刷新验证码">加载中…</button>
+          </div>
+        </div>
+        <div class="err" id="rg-err"></div>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">创建账号</button>
+      </form>
+
+      <div class="guest-link"><button class="btn btn-ghost btn-block" id="btn-guest">游客模式进入（仅浏览首页 / 动作库）</button></div>
+      <div class="auth-hint">本系统为本地优先架构，账号与数据均保存在你的浏览器中</div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const next = params.get('next') || 'index.html';
+
+(async function () {
+  await Store.ensureDemoAccount();
+  // 已登录则直接进入
+  if (Store.isLoggedIn()) { location.replace(next); return; }
+  // 回填记住的账号
+  try {
+    const saved = JSON.parse(localStorage.getItem('myomap:remember') || 'null');
+    if (saved) { document.getElementById('li-user').value = saved.u; document.getElementById('li-pass').value = saved.p; }
+  } catch (e) {}
+})();
+
+document.querySelectorAll('.auth-tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.auth-tabs button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('form-login').classList.toggle('hidden', b.dataset.tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', b.dataset.tab !== 'register');
+  if (b.dataset.tab === 'register') loadCaptcha();
+});
+
+document.getElementById('form-login').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const u = document.getElementById('li-user').value.trim();
+  const p = document.getElementById('li-pass').value;
+  const err = document.getElementById('li-err');
+  err.textContent = '';
+
+  // 优先后端登录（返回 JWT）
+  const resp = await Common.apiOrNull('/user/login', 'POST', { username: u, password: p });
+  if (resp) {
+    if (resp.code === 1 && resp.data) {
+      Store.setSession({
+        id: 'b' + resp.data.id, username: resp.data.username,
+        email: resp.data.email, guest: false, token: resp.data.token
+      });
+    } else {
+      err.textContent = resp.msg || '登录失败';
+      return;
+    }
+  } else {
+    // 后端不可用 → 本地账号登录
+    const r = await Store.login(u, p);
+    if (!r.ok) { err.textContent = r.msg; return; }
+  }
+
+  if (document.getElementById('li-remember').checked) localStorage.setItem('myomap:remember', JSON.stringify({ u: u, p: p }));
+  else localStorage.removeItem('myomap:remember');
+  Common.toast('登录成功，欢迎回来 ' + u, 'ok');
+  setTimeout(() => location.replace(next), 350);
+});
+
+// ---------- 注册验证码 ----------
+const CAPTCHA = { id: '', ready: false };
+const rgCaptchaQ = document.getElementById('rg-captcha-q');
+
+function loadCaptcha() {
+  return (async function () {
+    document.getElementById('rg-captcha').value = '';
+    rgCaptchaQ.textContent = '加载中…';
+    rgCaptchaQ.disabled = true;
+    const r = await Common.apiOrNull('/user/captcha', 'GET');
+    if (r && r.code === 1 && r.data && r.data.id) {
+      CAPTCHA.id = r.data.id; CAPTCHA.ready = true;
+      rgCaptchaQ.textContent = r.data.question; rgCaptchaQ.disabled = false;
+      document.getElementById('rg-captcha-field').classList.remove('hidden');
+    } else {
+      // 后端不可用（离线）→ 隐藏验证码，回退本地注册
+      CAPTCHA.id = ''; CAPTCHA.ready = false;
+      document.getElementById('rg-captcha-field').classList.add('hidden');
+    }
+  })();
+}
+rgCaptchaQ.addEventListener('click', loadCaptcha);
+
+// 密码强度提示
+const pwMeter = document.getElementById('rg-pw-meter').firstElementChild;
+function pwScore(pw) {
+  let s = 0;
+  if (pw.length >= 8) s++;
+  if (/[A-Za-z]/.test(pw) && /\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) s++;
+  return s;
+}
+document.getElementById('rg-pass').addEventListener('input', function () {
+  const s = pwScore(this.value);
+  pwMeter.style.width = (s >= 3 ? 100 : s === 2 ? 66 : s === 1 ? 33 : 0) + '%';
+  pwMeter.style.background = s >= 3 ? 'var(--green)' : s === 2 ? 'var(--yellow)' : 'var(--red)';
+});
+
+document.getElementById('form-register').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const u = document.getElementById('rg-user').value.trim();
+  const email = document.getElementById('rg-email').value.trim();
+  const p = document.getElementById('rg-pass').value;
+  const p2 = document.getElementById('rg-pass2').value;
+  const err = document.getElementById('rg-err');
+  err.textContent = '';
+
+  // 客户端预校验（与后端规则保持一致）
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(u)) { err.textContent = '用户名需为 3-20 位字母、数字或下划线'; return; }
+  if (p.length < 8 || p.length > 64) { err.textContent = '密码长度需在 8-64 位'; return; }
+  if (!/[A-Za-z]/.test(p) || !/\d/.test(p)) { err.textContent = '密码需同时包含字母和数字'; return; }
+  if (p !== p2) { err.textContent = '两次输入的密码不一致'; return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = '邮箱格式不正确'; return; }
+  const captchaAns = document.getElementById('rg-captcha').value.trim();
+  if (CAPTCHA.ready && !captchaAns) { err.textContent = '请填写验证码'; return; }
+
+  const payload = { username: u, password: p, email: email };
+  if (CAPTCHA.ready) { payload.captchaId = CAPTCHA.id; payload.captchaAnswer = captchaAns; }
+
+  const btn = this.querySelector('button[type=submit]');
+  btn.disabled = true;
+  try {
+    const resp = await Common.apiOrNull('/user/register', 'POST', payload);
+    if (resp && resp.code === 1 && resp.data) {
+      Store.setSession({
+        id: 'b' + resp.data.id, username: resp.data.username,
+        email: resp.data.email, guest: false, token: resp.data.token
+      });
+    } else if (resp) {
+      err.textContent = resp.msg || '注册失败';
+      if (/验证码/.test(err.textContent)) loadCaptcha();
+      btn.disabled = false;
+      return;
+    } else {
+      // 后端不可用 → 本地注册
+      const r = await Store.register(u, p, email);
+      if (!r.ok) { err.textContent = r.msg; btn.disabled = false; return; }
+    }
+    Common.toast('注册成功，已自动登录', 'ok');
+    setTimeout(() => location.replace(next), 350);
+  } catch (ex) {
+    err.textContent = '注册失败：' + (ex && ex.message || '未知错误');
+    btn.disabled = false;
+  }
+});
+
+loadCaptcha();
+
+document.getElementById('btn-guest').onclick = () => {
+  Store.loginAsGuest();
+  location.replace('index.html');
+};
+
+// 水合页面图标
+Common.hydrateIcons();
+Common.observeIcons();
+</script>
+</body>
+</html>

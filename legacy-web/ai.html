@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · AI 助手</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .chat-box { display: flex; flex-direction: column; height: 62vh; }
+  .chat-scroll { flex: 1; overflow-y: auto; padding: 6px 4px; }
+  .chat-input { display: flex; gap: 10px; margin-top: 14px; }
+  .chat-input input { flex: 1; }
+  .quick-q { padding: 8px 13px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-dim); cursor: pointer; transition: all .2s; }
+  .quick-q:hover { border-color: var(--accent); color: var(--text); }
+  .video-drop { border: 2px dashed var(--border-strong); border-radius: 14px; padding: 40px; text-align: center; cursor: pointer; transition: all .25s; }
+  .video-drop:hover { border-color: var(--accent); background: rgba(255,107,53,0.05); }
+  .score-ring { width: 130px; height: 130px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 34px; font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="chat"><i class="ic" data-ic="chat"></i> 智能问答</button>
+        <button class="tab" data-tab="video"><i class="ic" data-ic="video"></i> 视频动作解析</button>
+      </div>
+
+      <section id="tab-chat">
+        <div class="grid two-col" style="grid-template-columns:minmax(0,1fr) minmax(260px,320px);align-items:start;">
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="sparkles"></i></span> AI 健身助手
+              <span class="ct-sub" id="ai-model-badge"></span>
+              <button class="btn btn-sm btn-ghost" id="btn-ai-setup" style="margin-left:10px;"><i class="ic" data-ic="pencil" data-ic-size="13"></i> AI 设置</button>
+              <button class="btn btn-sm btn-ghost" id="btn-clear">清空对话</button>
+            </div>
+            <div class="chat-box">
+              <div class="chat-scroll" id="chat-scroll"></div>
+              <div class="chat-input">
+                <input class="input" id="chat-input" placeholder="输入你的健身问题…">
+                <button class="btn btn-primary" id="btn-send">发送</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="font-size:13.5px;"><i class="ic" data-ic="bolt"></i> 快捷提问</div>
+            <div class="flex flex-wrap gap-8" id="quick-list"></div>
+            <div class="divider"></div>
+            <div class="mute" style="font-size:12px;line-height:1.8;">
+              已接入真实大模型（OpenAI 兼容协议）。未配置时使用内置知识库。<br>
+              <b style="color:var(--text-dim)">对话历史与 API Key 仅保存在本地</b>，保护你的隐私。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-video" class="hidden">
+        <div class="grid grid-2" style="align-items:start;">
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="video"></i></span> 上传训练视频</div>
+            <div class="field">
+              <label class="label">动作类型</label>
+              <select class="select" id="va-type">
+                <optgroup label="下肢（膝主导）">
+                  <option>深蹲</option><option>硬拉</option><option>箭步蹲</option>
+                  <option>保加利亚分腿蹲</option><option>腿举</option><option>臀推</option>
+                </optgroup>
+                <optgroup label="上肢推（肘主导）">
+                  <option>卧推</option><option>推举</option><option>俯卧撑</option><option>臂屈伸</option>
+                </optgroup>
+                <optgroup label="上肢拉（肘主导）">
+                  <option>引体向上</option><option>高位下拉</option><option>划船</option><option>弯举</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="video-drop" id="video-drop">
+              <div style="font-size:40px;opacity:.4;"><i class="ic" data-ic="upload"></i></div>
+              <div style="margin-top:10px;font-weight:600;">点击选择视频文件</div>
+              <div class="mute" style="font-size:12px;margin-top:6px;">支持 MP4 / MOV / WebM</div>
+            </div>
+            <input type="file" id="video-file" accept="video/*" class="hidden">
+            <video id="video-preview" class="hidden" controls style="width:100%;border-radius:12px;margin-top:14px;background:#000;"></video>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button class="btn btn-primary" id="btn-analyze" style="flex:1;" disabled><i class="ic" data-ic="search"></i> 开始分析</button>
+              <button class="btn btn-ghost hidden" id="btn-video-clear"><i class="ic" data-ic="trash"></i> 删除视频</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="chart"></i></span> 分析结果</div>
+            <div id="va-result"><div class="empty"><div class="empty-ico"><i class="ic" data-ic="video" data-ic-size="44"></i></div><div class="empty-title">上传视频后开始分析</div><div class="empty-hint">系统将检测人体关键点并评估动作质量</div></div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script src="assets/js/ai-client.js"></script>
+<script src="assets/js/pose-analysis.js?v=2"></script>
+<script>
+Common.shell({ active: 'ai', title: 'AI 智能助手', subtitle: '对话问答 · 动作解析' });
+
+// ---------- Tabs ----------
+document.querySelectorAll('#tabs .tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('#tabs .tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('tab-chat').classList.toggle('hidden', t.dataset.tab !== 'chat');
+  document.getElementById('tab-video').classList.toggle('hidden', t.dataset.tab !== 'video');
+});
+
+// ---------- 服务端 AI 状态（服务端持有 Key 时，所有设备/访客免配置）----------
+let serverAI = false, serverModel = '';
+(async function initAIStatus() {
+  const r = await Common.apiOrNull('/ai/status', 'GET');
+  if (r && r.code === 1 && r.data) { serverAI = !!r.data.enabled; serverModel = r.data.model || ''; refreshBadge(); }
+})();
+
+// ---------- 对话 ----------
+const QUICK = ['如何增肌？', '减脂期怎么吃？', '深蹲膝盖疼怎么办？', '如何突破卧推瓶颈？', '硬拉如何护腰？', '每天需要多少蛋白质？', '训练后如何恢复？', '新手如何开始健身？'];
+
+function renderQuick() {
+  document.getElementById('quick-list').innerHTML = QUICK.map(q => '<span class="quick-q">' + q + '</span>').join('');
+  document.querySelectorAll('.quick-q').forEach(q => q.onclick = () => { document.getElementById('chat-input').value = q.textContent; send(); });
+}
+
+function renderChat() {
+  const chats = Store.getChats();
+  const el = document.getElementById('chat-scroll');
+  if (!chats.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="sparkles" data-ic-size="44"></i></div><div class="empty-title">你好，我是 MyoMap AI 助手</div><div class="empty-hint">可以问我训练、营养、恢复等问题</div></div>';
+    return;
+  }
+  el.innerHTML = chats.map(m =>
+    '<div class="msg ' + (m.role === 'user' ? 'me' : '') + '">' +
+      '<div class="msg-avatar">' + (m.role === 'user' ? '<i class="ic" data-ic="user"></i>' : '<i class="ic" data-ic="sparkles"></i>') + '</div>' +
+      '<div><div class="msg-bubble">' + Common.esc(m.text) + '</div>' +
+      '<div class="msg-time">' + Common.fmtDateTime(m.time) + '</div></div>' +
+    '</div>').join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function send() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+  Store.addChat({ role: 'user', text: q });
+  input.value = '';
+  renderChat();
+  const scroll = document.getElementById('chat-scroll');
+  scroll.insertAdjacentHTML('beforeend', '<div class="msg" id="typing"><div class="msg-avatar"><i class="ic" data-ic="sparkles"></i></div><div class="msg-bubble"><span class="spinner"></span></div></div>');
+  scroll.scrollTop = scroll.scrollHeight;
+
+  // 组装上下文（最近 10 轮）
+  const history = Store.getChats().slice(-10).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+  let answer = null;
+  const typing = document.getElementById('typing');
+  const bubble = typing ? typing.querySelector('.msg-bubble') : null;
+
+  // ① 优先后端代理（服务端持有 Key，任意电脑/访客均无需再配置）
+  //    大模型响应较慢，单独放宽超时到 60s（Common.api 默认 4s 只适合读接口）
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60000);
+    const res = await fetch(Common.apiBase() + '/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    const resp = await res.json();
+    if (resp && resp.code === 1 && resp.data && resp.data.answer && resp.data.server) answer = resp.data.answer;
+  } catch (e) { /* 网络/超时 → 继续走客户端或本地兜底 */ }
+
+  // ② 客户端直连大模型（访客自备 Key，支持流式）
+  if (!answer && window.MyAI && MyAI.isConfigured()) {
+    try {
+      let streamed = false;
+      answer = await MyAI.chat(history, function (piece, full) {
+        if (!streamed && bubble) { bubble.innerHTML = ''; streamed = true; }
+        if (bubble) { bubble.textContent = full; scroll.scrollTop = scroll.scrollHeight; }
+      });
+    } catch (e) {
+      if (bubble) bubble.innerHTML = '';
+      Common.toast('AI 调用失败：' + e.message, 'err');
+      if (/API Key|鉴权|Authorization/.test(e.message)) setTimeout(openAISetup, 400);
+      answer = null;
+    }
+  }
+
+  // ③ 内置知识库兜底
+  if (!answer) answer = Common.localAI(q);
+
+  if (typing) typing.remove();
+  Store.addChat({ role: 'ai', text: answer });
+  renderChat();
+}
+
+// ---------- AI 设置 ----------
+function refreshBadge() {
+  const el = document.getElementById('ai-model-badge');
+  if (!el) return;
+  if (serverAI) { el.innerHTML = '<span class="tag tag-green">服务端 AI · ' + Common.esc(serverModel || 'GLM') + '</span>'; return; }
+  if (!window.MyAI || !MyAI.isConfigured()) { el.innerHTML = '<span class="tag">本地知识库</span>'; return; }
+  let html = '<span class="tag tag-green">' + Common.esc(MyAI.providerLabel()) + '</span>';
+  if (MyAI.needsKey() && !MyAI.hasKey()) html += ' <span class="tag tag-red">缺少 API Key</span>';
+  el.innerHTML = html;
+}
+
+function openAISetup() {
+  if (serverAI) {
+    Common.confirmModal('服务端 AI 已启用',
+      '服务端已配置智谱 ' + Common.esc(serverModel || 'GLM') + '，任何设备/访客直接可用，无需填写 API Key。是否仍要自定义客户端大模型？',
+      () => MyAI.openSetup(refreshBadge), '仍要自定义');
+    return;
+  }
+  MyAI.openSetup(refreshBadge);
+}
+
+document.getElementById('btn-ai-setup').onclick = openAISetup;
+
+document.getElementById('btn-send').onclick = send;
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+document.getElementById('btn-clear').onclick = () => {
+  Common.confirmModal('清空对话', '确定清空所有对话历史吗？', () => { Store.clearChats(); renderChat(); Common.toast('已清空', 'ok'); }, '清空');
+};
+
+// ---------- 视频动作解析 (FR-07-05~08) ----------
+// 真实实现：浏览器端姿态关键点检测（MyPose 模块）+ 关节角度规则评分
+// 依赖已本地化到 libs/mediapipe/，离线可用；模型不可用时给出明确提示。
+let mediaReady = false;          // 是否已载入媒体
+let lastResult = null;           // 最近一次分析结果，便于回看骨架
+let videoUrl = null;             // 当前预览对象的 URL，便于释放
+
+document.getElementById('video-drop').onclick = () => document.getElementById('video-file').click();
+document.getElementById('video-file').onchange = function (e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (videoUrl) URL.revokeObjectURL(videoUrl);
+  videoUrl = URL.createObjectURL(f);
+  const v = document.getElementById('video-preview');
+  v.src = videoUrl; v.classList.remove('hidden');
+  v.load();
+  mediaReady = true; lastResult = null;
+  document.getElementById('btn-analyze').disabled = false;
+  document.getElementById('btn-video-clear').classList.remove('hidden');
+  document.getElementById('video-drop').querySelector('div:nth-child(2)').textContent = '已选择：' + f.name;
+  document.getElementById('va-result').innerHTML =
+    '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="video" data-ic-size="44"></i></div>' +
+    '<div class="empty-title">已载入动作片段</div><div class="empty-hint">点击「开始分析」检测关键点并评估动作质量</div></div>';
+  Common.hydrateIcons && Common.hydrateIcons();
+};
+
+/** 删除已选视频，恢复初始状态（无需刷新页面） */
+function clearVideo() {
+  const v = document.getElementById('video-preview');
+  try { v.pause(); } catch (e) {}
+  if (videoUrl) { URL.revokeObjectURL(videoUrl); videoUrl = null; }
+  v.removeAttribute('src'); v.classList.add('hidden');
+  document.getElementById('video-file').value = '';
+  mediaReady = false; lastResult = null;
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('btn-video-clear').classList.add('hidden');
+  document.getElementById('video-drop').querySelector('div:nth-child(2)').textContent = '点击选择视频文件';
+  document.getElementById('va-result').innerHTML =
+    '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="video" data-ic-size="44"></i></div>' +
+    '<div class="empty-title">上传视频后开始分析</div><div class="empty-hint">系统将检测人体关键点并评估动作质量</div></div>';
+  Common.hydrateIcons && Common.hydrateIcons();
+}
+document.getElementById('btn-video-clear').onclick = clearVideo;
+
+function waitVideoReady(v) {
+  return new Promise(function (res, rej) {
+    if (v.readyState >= 2 && v.videoWidth) return res();
+    const ok = () => { cleanup(); res(); };
+    const bad = () => { cleanup(); rej(new Error('视频无法解码，请更换 MP4 / MOV / WebM 格式')); };
+    const cleanup = () => { v.removeEventListener('loadeddata', ok); v.removeEventListener('error', bad); };
+    v.addEventListener('loadeddata', ok);
+    v.addEventListener('error', bad);
+    setTimeout(bad, 8000);
+  });
+}
+
+/** 播放一遍，确保浏览器解码出完整动画帧（webp/gif 动图也适用） */
+function playThrough(v) {
+  return new Promise(function (res) {
+    let done = false;
+    const fin = () => { if (!done) { done = true; v.pause(); try { v.currentTime = 0; } catch (e) {} res(); } };
+    v.addEventListener('ended', fin);
+    v.play().then(() => setTimeout(fin, Math.min(8000, (v.duration || 2) * 1000 + 800))).catch(fin);
+    setTimeout(fin, 9000);
+  });
+}
+
+document.getElementById('btn-analyze').onclick = async function () {
+  if (!mediaReady) return;
+  const type = document.getElementById('va-type').value;
+  const el = document.getElementById('va-result');
+  const v = document.getElementById('video-preview');
+  const btn = this;
+  btn.disabled = true; Common.setHTML(btn, '<i class="ic" data-ic="hourglass"></i> 分析中…');
+  el.innerHTML = '<div class="loading-row"><span class="spinner"></span> 正在加载姿态模型…</div>';
+
+  const setMsg = (m) => { el.innerHTML = '<div class="loading-row"><span class="spinner"></span> ' + Common.esc(m) + '</div>'; };
+  try {
+    await waitVideoReady(v);
+    if (!MyPose.isReady()) await MyPose.load(setMsg);
+    await playThrough(v);
+    setMsg('正在检测人体关键点…');
+    const t0 = performance.now();
+    const r = await MyPose.analyze(v, {
+      exercise: type,
+      sampleFps: 10,
+      onProgress: function (m) { if (el.querySelector('.loading-row')) setMsg(m); }
+    });
+    lastResult = r;
+    renderAnalysis(type, r, Math.round(performance.now() - t0));
+    Common.toast('分析完成：' + r.summary.score + ' 分', r.summary.score >= 85 ? 'ok' : 'warn');
+  } catch (e) {
+    el.innerHTML =
+      '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="alert" data-ic-size="40"></i></div>' +
+      '<div class="empty-title">分析失败</div><div class="empty-hint">' + Common.esc(e && e.message || '未知错误') + '</div>' +
+      '<div class="mute" style="font-size:12px;margin-top:10px;text-align:left;">' +
+      '· 请确认视频画面中完整出现全身，且光线充足<br>' +
+      '· 建议侧面或侧面 45° 拍摄，避免遮挡关节<br>' +
+      '· 姿态模型位于 libs/mediapipe/，请通过本地服务器访问（非 file://）</div></div>';
+  } finally {
+    btn.disabled = false; Common.setHTML(btn, '<i class="ic" data-ic="search"></i> 开始分析');
+    Common.hydrateIcons && Common.hydrateIcons();
+  }
+};
+
+/** 渲染分析结果：评分 + 骨架回放 + 关节角度 + 问题清单 */
+function renderAnalysis(type, r, costMs) {
+  const s = r.summary;
+  const el = document.getElementById('va-result');
+  const color = s.level === 'good' ? '#2ecc71' : s.level === 'ok' ? '#ffc93c' : '#ff5470';
+  // 取最深/最大屈曲的一帧作为骨架回放
+  const upper = !!s.upper;
+  const key = upper ? 'elbowL' : 'knee';
+  let pick = r.series[0], minv = Infinity;
+  r.series.forEach(function (x) {
+    const val = key === 'elbowL' ? Math.min(x.metrics.elbowL == null ? Infinity : x.metrics.elbowL, x.metrics.elbowR == null ? Infinity : x.metrics.elbowR) : x.metrics.knee;
+    if (val != null && val < minv) { minv = val; pick = x; }
+  });
+  const fmt = (v, u) => (v == null ? '—' : v.toFixed(1) + (u || '°'));
+  const issueHtml = s.issues.length
+    ? s.issues.map(function (i) {
+        const c = i.level === 'warn' ? '#ff5470' : '#ffc93c';
+        return '<div style="padding:10px 12px;border-radius:10px;background:' + c + '14;border-left:3px solid ' + c + ';font-size:13px;margin-bottom:8px;">' + Common.esc(i.text) + '</div>';
+      }).join('')
+    : '<div class="mute" style="font-size:13px;">动作标准，未发现明显问题 <i class="ic" data-ic="thumbsUp"></i></div>';
+
+  el.innerHTML =
+    '<div class="score-ring" style="background:radial-gradient(circle, ' + color + '22, transparent 70%);border:3px solid ' + color + ';color:' + color + ';">' + s.score + '</div>' +
+    '<div class="center" style="margin-top:12px;font-weight:700;">' + Common.esc(type) + ' 动作评分</div>' +
+    '<div class="mute center" style="font-size:12px;margin-top:4px;">基于 ' + s.frames + ' 帧关键点轨迹与关节角度计算（耗时 ' + costMs + ' ms）</div>' +
+    '<canvas id="va-canvas" style="width:100%;border-radius:12px;margin-top:12px;background:var(--canvas-bg);"></canvas>' +
+    '<div class="grid grid-2" style="gap:10px;margin-top:12px;">' +
+      '<div class="card" style="margin:0;padding:10px;"><div class="mute" style="font-size:11px;">' + (upper ? '最小肘角（收缩深度）' : '最小膝角（下蹲深度）') + '</div><div style="font-size:18px;font-weight:800;">' + fmt(upper ? s.minElbow : s.minKnee) + '</div></div>' +
+      '<div class="card" style="margin:0;padding:10px;"><div class="mute" style="font-size:11px;">最大躯干前倾</div><div style="font-size:18px;font-weight:800;">' + fmt(s.maxLean) + '</div></div>' +
+      '<div class="card" style="margin:0;padding:10px;"><div class="mute" style="font-size:11px;">动作行程</div><div style="font-size:18px;font-weight:800;">' + fmt(s.range) + '</div></div>' +
+      '<div class="card" style="margin:0;padding:10px;"><div class="mute" style="font-size:11px;">左右最大差值</div><div style="font-size:18px;font-weight:800;">' + fmt(s.maxAsym) + '</div></div>' +
+    '</div>' +
+    '<div class="divider"></div>' +
+    '<div class="card-title" style="font-size:13.5px;"><i class="ic" data-ic="alert"></i> 检测到的问题</div>' + issueHtml +
+    '<div class="card-title" style="font-size:13.5px;margin-top:16px;"><i class="ic" data-ic="bulb"></i> 改进建议</div>' +
+    '<div style="font-size:13px;line-height:1.8;color:var(--text-dim);">' +
+      '· 先用轻重量把动作幅度做完整，再逐步加重<br>' +
+      '· 训练前热身并激活目标肌群，训练中保持核心收紧<br>' +
+      '· 建议侧面或侧面 45° 固定机位拍摄，便于对比每次训练<br>' +
+      '· 左右差值持续偏大时，增加单侧训练补齐弱侧' +
+    '</div>' +
+    '<div class="mute" style="font-size:11px;margin-top:14px;"><i class="ic" data-ic="alert"></i> ' +
+      '本分析基于二维关键点估算，仅作训练参考，不构成医疗或专业指导。</div>';
+
+  const cv = document.getElementById('va-canvas');
+  cv.width = pick.landmarks ? 640 : 640;
+  cv.height = 400;
+  // 等比绘制：按关键点包围盒缩放到画布
+  const xs = pick.landmarks.map(p => p.x), ys = pick.landmarks.map(p => p.y);
+  const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+  const minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+  const pad = 0.06;
+  const sx = (maxX - minX) || 1, sy = (maxY - minY) || 1;
+  const scale = Math.min((1 - 2 * pad) / sx, (1 - 2 * pad) * (cv.height / cv.width) / sy);
+  const offX = (1 - sx * scale) / 2 - minX * scale;
+  const offY = (1 - sy * scale * (cv.width / cv.height)) / 2 - minY * scale * (cv.width / cv.height);
+  const norm = pick.landmarks.map(p => ({ x: p.x * scale + offX, y: (p.y * scale) * (cv.width / cv.height) + offY, visibility: p.visibility }));
+  MyPose.drawSkeleton(cv, norm, pick.metrics);
+  Common.hydrateIcons && Common.hydrateIcons();
+}
+
+renderQuick(); renderChat(); refreshBadge();
+</script>
+</body>
+</html>

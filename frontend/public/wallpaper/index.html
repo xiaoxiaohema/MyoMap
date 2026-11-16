@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow · Fitness Wallpaper</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #05070d; }
+
+  .stage { position: fixed; inset: 0; }
+  .parallax {
+    position: absolute; inset: -3%;
+    transition: transform 1.2s cubic-bezier(.22, 1, .36, 1);
+    will-change: transform;
+  }
+
+  /* ---------- 背景肌肉线条图：缓慢呼吸 ---------- */
+  .bg {
+    position: absolute; inset: -5%;
+    background: url('assets/fitness-lines.jpg') center / cover no-repeat;
+    animation: breathe 18s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1.02); }
+    50%      { transform: scale(1.075); }
+  }
+
+  /* ---------- 肌肉线条脉冲光 ---------- */
+  .pulse {
+    position: absolute; left: 50%; top: 47%;
+    width: 52vmin; height: 74vmin;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(ellipse at center,
+      rgba(255, 205, 130, .12) 0%,
+      rgba(255, 190, 110, .05) 45%,
+      transparent 70%);
+    mix-blend-mode: screen;
+    animation: pulse 5.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: .55; }
+    50%      { opacity: 1; }
+  }
+
+  /* ---------- 斜向能量扫光 ---------- */
+  .sweep {
+    position: absolute; top: -35%; left: -70%;
+    width: 55%; height: 170%;
+    background: linear-gradient(105deg,
+      transparent 42%,
+      rgba(255, 226, 170, .10) 49%,
+      rgba(255, 246, 225, .06) 53%,
+      transparent 60%);
+    filter: blur(22px);
+    transform: rotate(7deg);
+    mix-blend-mode: screen;
+    animation: sweep 10s cubic-bezier(.45, 0, .25, 1) infinite;
+    pointer-events: none;
+  }
+  .sweep.s2 { animation-delay: 5s; opacity: .7; }
+  @keyframes sweep {
+    0%   { left: -70%; opacity: 0; }
+    18%  { opacity: 1; }
+    70%  { opacity: 1; }
+    100% { left: 135%; opacity: 0; }
+  }
+
+  /* ---------- 漂移光晕 ---------- */
+  .glow {
+    position: absolute; border-radius: 50%;
+    filter: blur(90px); mix-blend-mode: screen;
+    pointer-events: none;
+  }
+  .glow.g1 {
+    width: 46vmax; height: 46vmax; left: -12%; top: -18%;
+    background: radial-gradient(circle, rgba(255, 186, 105, .15), transparent 65%);
+    animation: drift1 24s ease-in-out infinite;
+  }
+  .glow.g2 {
+    width: 42vmax; height: 42vmax; right: -14%; bottom: -18%;
+    background: radial-gradient(circle, rgba(115, 165, 255, .12), transparent 65%);
+    animation: drift2 28s ease-in-out infinite;
+  }
+  .glow.g3 {
+    width: 30vmax; height: 30vmax; left: 55%; top: 55%;
+    background: radial-gradient(circle, rgba(255, 214, 150, .08), transparent 65%);
+    animation: drift1 32s ease-in-out infinite reverse;
+  }
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(24vw, 28vh) scale(1.15); }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-22vw, -26vh) scale(1.1); }
+  }
+
+  /* ---------- SVG 能量流线 ---------- */
+  .flows {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .flows path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-dasharray: 260 1500;
+    animation: flowDash var(--dur, 7s) linear infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  .flows path.ribbon { stroke-width: 1.6; filter: blur(.4px); }
+  .flows path.breeze { stroke-width: .8; opacity: .35; }
+  @keyframes flowDash {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -1760; }
+  }
+
+  /* ---------- 漂浮能量粒子 ---------- */
+  .particles { position: absolute; inset: 0; pointer-events: none; }
+  .particle {
+    position: absolute; bottom: -2vh;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255, 235, 195, .95) 0%,
+      rgba(255, 205, 135, .35) 60%,
+      transparent 100%);
+    animation: rise var(--dur) linear infinite;
+    animation-delay: var(--delay);
+    opacity: 0;
+  }
+  @keyframes rise {
+    0%   { transform: translate(0, 0) scale(.6); opacity: 0; }
+    12%  { opacity: var(--o, .6); }
+    85%  { opacity: var(--o, .6); }
+    100% { transform: translate(var(--sway, 40px), -104vh) scale(1); opacity: 0; }
+  }
+
+  /* ---------- 质感噪点 ---------- */
+  .grain {
+    position: absolute; inset: -50%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: .045;
+    animation: grainShift 1.2s steps(4) infinite;
+    pointer-events: none;
+  }
+  @keyframes grainShift {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-2%, 1.5%); }
+    50%  { transform: translate(1.5%, -2%); }
+    75%  { transform: translate(-1%, -1%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* ---------- 暗角 + 底部渐隐 ---------- */
+  .vignette {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 90% 95% at 50% 46%, transparent 55%, rgba(3, 5, 10, .55) 100%),
+      linear-gradient(to top, rgba(5, 7, 13, .85) 0%, rgba(5, 7, 13, .25) 12%, transparent 28%),
+      linear-gradient(to bottom, rgba(5, 7, 13, .35) 0%, transparent 18%);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg, .pulse, .sweep, .glow, .flows path, .particle, .grain {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="parallax" id="parallax">
+    <div class="bg"></div>
+
+    <div class="pulse"></div>
+    <div class="sweep"></div>
+    <div class="sweep s2"></div>
+
+    <div class="glow g1"></div>
+    <div class="glow g2"></div>
+    <div class="glow g3"></div>
+
+    <!-- 能量流线：贴合画面中丝绸光带的走势 -->
+    <svg class="flows" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="goldFlow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="rgba(255,210,140,0)"/>
+          <stop offset="45%"  stop-color="rgba(255,214,150,.9)"/>
+          <stop offset="55%"  stop-color="rgba(255,248,230,1)"/>
+          <stop offset="100%" stop-color="rgba(255,210,140,0)"/>
+        </linearGradient>
+        <linearGradient id="coolFlow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="rgba(150,190,255,0)"/>
+          <stop offset="50%"  stop-color="rgba(190,215,255,.8)"/>
+          <stop offset="100%" stop-color="rgba(150,190,255,0)"/>
+        </linearGradient>
+      </defs>
+
+      <!-- 左下飘带 -->
+      <path class="ribbon" stroke="url(#goldFlow)"
+            d="M 585 615 C 470 665, 330 725, 268 652 C 226 596, 358 575, 432 612"
+            style="--dur:6.5s;--delay:-1s"/>
+      <!-- 右侧飘带 -->
+      <path class="ribbon" stroke="url(#goldFlow)"
+            d="M 1018 602 C 1122 558, 1205 562, 1192 642 C 1178 732, 1078 702, 1008 662"
+            style="--dur:7.5s;--delay:-3.2s"/>
+      <!-- 左肩飘带 -->
+      <path class="ribbon" stroke="url(#goldFlow)"
+            d="M 706 282 C 622 218, 538 218, 528 282 C 520 332, 602 322, 662 302"
+            style="--dur:6s;--delay:-2.1s"/>
+      <!-- 右肩飘带 -->
+      <path class="ribbon" stroke="url(#goldFlow)"
+            d="M 894 282 C 978 218, 1062 218, 1072 282 C 1080 332, 998 322, 938 302"
+            style="--dur:6.8s;--delay:-.6s"/>
+      <!-- 横贯画面的微风能量线 -->
+      <path class="breeze" stroke="url(#coolFlow)"
+            d="M -120 470 C 380 330, 780 590, 1720 380"
+            style="--dur:11s"/>
+      <path class="breeze" stroke="url(#goldFlow)"
+            d="M -120 660 C 500 510, 920 760, 1720 545"
+            style="--dur:13s;--delay:-5s"/>
+      <path class="breeze" stroke="url(#coolFlow)"
+            d="M -120 250 C 420 360, 860 130, 1720 270"
+            style="--dur:15s;--delay:-8s"/>
+    </svg>
+
+    <div class="particles" id="particles"></div>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+  </div>
+</div>
+
+<script>
+  // 生成漂浮能量粒子
+  const layer = document.getElementById('particles');
+  const COUNT = 26;
+  for (let i = 0; i < COUNT; i++) {
+    const p = document.createElement('span');
+    p.className = 'particle';
+    const size = (Math.random() * 2.2 + 1).toFixed(1);
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.left = (Math.random() * 100).toFixed(2) + 'vw';
+    p.style.setProperty('--dur', (Math.random() * 10 + 12).toFixed(1) + 's');
+    p.style.setProperty('--delay', (-Math.random() * 18).toFixed(1) + 's');
+    p.style.setProperty('--sway', (Math.random() * 120 - 60).toFixed(0) + 'px');
+    p.style.setProperty('--o', (Math.random() * .45 + .2).toFixed(2));
+    layer.appendChild(p);
+  }
+
+  // 鼠标轻微视差
+  const parallax = document.getElementById('parallax');
+  let tx = 0, ty = 0, cx = 0, cy = 0;
+  window.addEventListener('pointermove', (e) => {
+    tx = (e.clientX / window.innerWidth - .5) * 26;
+    ty = (e.clientY / window.innerHeight - .5) * 26;
+  });
+  (function raf() {
+    cx += (tx - cx) * .04;
+    cy += (ty - cy) * .04;
+    parallax.style.transform = `translate(${cx.toFixed(2)}px, ${cy.toFixed(2)}px)`;
+    requestAnimationFrame(raf);
+  })();
+</script>
+</body>
+</html>

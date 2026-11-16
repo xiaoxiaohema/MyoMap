@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MyoMap · Cloudflare 快速隧道常驻服务（macOS launchd）
+  安装：
+    cp deploy/launchd/com.myomap.tunnel.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.myomap.tunnel.plist
+  卸载：
+    launchctl unload ~/Library/LaunchAgents/com.myomap.tunnel.plist
+  说明：
+    - KeepAlive=true，进程退出后由 launchd 自动重启（断线自愈）；
+    - 日志：/tmp/myomap-tunnel.log（stderr 在同名 .err.log），内含当前公网地址；
+    - 快速隧道每次重启会分配新地址；如需固定域名请参考 deploy/CLOUD.md 使用命名隧道。
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.myomap.tunnel</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/cloudflared</string>
+        <string>tunnel</string>
+        <string>--url</string>
+        <string>http://localhost:8080</string>
+        <string>--no-autoupdate</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/myomap-tunnel.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/myomap-tunnel.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 首页</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .hero-grid { display: grid; grid-template-columns: minmax(340px, 520px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .bodymap-wrap { height: 600px; position: relative; border-radius: 14px; overflow: hidden; background: var(--stage-bg); }
+  #body-3d-container { width: 100%; height: 100%; position: relative; cursor: grab; }
+  #body-3d-container:active { cursor: grabbing; }
+  #body-3d-container canvas { display: block; position: relative; z-index: 1; }
+  .glb-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-mute); font-size: 13px; text-align: center; padding: 20px; z-index: 0; }
+  .view-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 5; font-size: 11px; color: rgba(255,255,255,0.55); background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 12px; white-space: nowrap; pointer-events: none; }
+  .rec-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); transition: all .22s; cursor: pointer; }
+  .rec-item:hover { border-color: rgba(255,107,53,0.4); background: rgba(255,107,53,0.06); transform: translateX(3px); }
+  .rec-item .rec-idx { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-2); font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rec-item .rec-name { font-size: 13.5px; font-weight: 600; }
+  .rec-item .rec-muscle { font-size: 11px; color: var(--text-mute); }
+  .rec-item .rec-tags { margin-left: auto; display: flex; gap: 5px; }
+  @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } .bodymap-wrap { height: 480px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div id="guest-bar"></div>
+
+      <div class="hero-grid">
+        <!-- 人体交互式部位选择器 (FM-02) -->
+        <div class="card">
+          <div class="card-title">
+            <span class="ct-ico"><i class="ic" data-ic="cube"></i></span> 选择训练部位
+            <span class="ct-sub">拖动旋转 · 滚轮缩放 · 点击肌肉选择（可多选）</span>
+          </div>
+          <div class="bodymap-wrap">
+            <div id="body-3d-container">
+              <div class="glb-placeholder">正在加载 3D 肌肉模型…<br><span style="font-size:11.5px;opacity:.7;">若长时间无响应，请确认通过本地服务器访问（非 file://）</span></div>
+            </div>
+            <div class="view-hint" id="view-hint"><i class="ic" data-ic="mouse"></i> 拖动旋转 · 滚轮缩放 · 点击肌肉选择</div>
+          </div>
+          <div class="muscle-tooltip" id="muscle-tooltip"></div>
+          <div id="selected-chips" class="chip-group" style="margin-top:14px;"></div>
+          <div class="flex flex-wrap gap-8" style="margin-top:12px;">
+            <button class="btn btn-sm btn-ghost" id="btn-reset"><i class="ic" data-ic="target"></i> 重置视角</button>
+            <button class="btn btn-sm btn-ghost" id="btn-clear">清空</button>
+            <button class="btn btn-sm btn-ghost" id="btn-full"><i class="ic" data-ic="bolt"></i> 一键全身</button>
+            <button class="btn btn-sm btn-primary" id="btn-gen-plan" style="margin-left:auto;"><i class="ic" data-ic="clipboard"></i> 生成计划</button>
+          </div>
+        </div>
+
+        <!-- 推荐动作 + 仪表盘 -->
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="target"></i></span> 推荐动作
+              <span class="ct-sub" id="rec-sub">请选择部位</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-8" id="rec-stats" style="margin-bottom:12px;"></div>
+            <div id="rec-list"></div>
+            <div class="divider" style="margin:14px 0;"></div>
+            <div class="flex items-center gap-8">
+              <span class="mute" style="font-size:12.5px;">不确定怎么练？</span>
+              <button class="btn btn-sm btn-ghost" id="btn-beginner">
+                <i class="ic" data-ic="sprout" data-ic-size="14"></i> 新手入门指导
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="calendar"></i></span> 今日健康仪表盘 <span class="ct-sub">数据来源：智能手环 · 手动录入</span></div>
+            <div class="grid grid-3" id="dash"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script src="assets/js/device.js"></script>
+<script>
+Common.shell({ active: 'home', title: '人体交互式部位选择器', subtitle: '点击 3D 模型上的肌肉（可多选）获取训练动作', public: true });
+Common.ensureDisclaimer();
+
+let selected = [];
+const MUSCLE_SET = {};
+Common.MUSCLE_GROUPS.forEach(m => MUSCLE_SET[m] = 1);
+
+// 游客提示条
+(function () {
+  if (!Store.isGuest()) return;
+  document.getElementById('guest-bar').innerHTML =
+    '<div class="guest-bar"><i class="ic" data-ic="user"></i> 你正处于 <b>游客模式</b>，可以自由浏览首页与动作库；登录后即可保存计划、记录训练与身体数据。' +
+    '<a class="btn btn-sm btn-primary" href="login.html?next=index.html">立即登录</a></div>';
+})();
+
+// 单一数据源：选中部位数组 → 同步 3D 高亮 + 标签 + 推荐
+function sync() {
+  if (typeof window.setGLBSelection === 'function') window.setGLBSelection(selected);
+  renderChips();
+  renderRecommend();
+}
+
+function toggleMuscle(name) {
+  if (!name || !MUSCLE_SET[name]) return; // 忽略未映射的肌肉（如面部肌肉）
+  const i = selected.indexOf(name);
+  if (i >= 0) selected.splice(i, 1);
+  else selected.push(name);
+  sync();
+}
+
+// 供 viewer3d.js 调用
+window.selectMuscleByName = toggleMuscle;
+window.selectMuscle = function (name) {
+  if (!name) { selected = []; sync(); }
+  else toggleMuscle(name);
+};
+
+function renderChips() {
+  const el = document.getElementById('selected-chips');
+  if (!selected.length) { el.innerHTML = '<span class="mute" style="font-size:12.5px;">尚未选择部位，点击 3D 模型上的肌肉开始</span>'; return; }
+  el.innerHTML = selected.map(m =>
+    '<span class="chip active" data-m="' + Common.esc(m) + '">' + Common.esc(m) + ' ✕</span>').join('');
+  el.querySelectorAll('.chip').forEach(c => c.onclick = () => toggleMuscle(c.dataset.m));
+}
+
+function renderRecommend() {
+  const listEl = document.getElementById('rec-list');
+  const sub = document.getElementById('rec-sub');
+  const statsEl = document.getElementById('rec-stats');
+  const stats = Common.muscleStats();
+
+  if (!selected.length) {
+    sub.textContent = '请选择部位';
+    statsEl.innerHTML =
+      '<span class="tag tag-accent">动作库共 ' + stats.total + ' 个动作</span>' +
+      '<span class="tag">' + stats.muscles + ' 个肌群</span>' +
+      '<span class="tag tag-green">初级 ' + stats.byDiff['初级'] + '</span>' +
+      '<span class="tag tag-yellow">中级 ' + stats.byDiff['中级'] + '</span>' +
+      '<span class="tag tag-red">高级 ' + stats.byDiff['高级'] + '</span>';
+    listEl.innerHTML = '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="dumbbell" data-ic-size="44"></i></div><div class="empty-title">选择肌肉部位后显示推荐动作</div><div class="empty-hint">推荐按「复合动作优先」排序，点击动作查看分步指导</div></div>';
+    return;
+  }
+
+  // 每个选中肌群的动作总数 + 推荐（复合优先）
+  const perMuscle = selected.map(m => ({ m: m, total: Common.exercisesByMuscle(m).length }));
+  let picks = [];
+  selected.forEach(m => {
+    const exs = Common.sortByCompound(Common.exercisesByMuscle(m)).slice(0, 3);
+    picks = picks.concat(exs);
+  });
+  picks = picks.slice(0, 10);
+  const totalSelected = perMuscle.reduce((s, x) => s + x.total, 0);
+  const compoundN = picks.filter(e => Common.COMPOUND_TYPES.indexOf(e.type) >= 0).length;
+
+  sub.textContent = selected.join(' · ');
+  statsEl.innerHTML =
+    '<span class="tag tag-accent">该部位共 ' + totalSelected + ' 个动作</span>' +
+    '<span class="tag">推荐 ' + picks.length + ' 个</span>' +
+    '<span class="tag tag-blue">复合动作 ' + compoundN + '</span>' +
+    perMuscle.map(x => '<span class="tag">' + Common.esc(x.m) + ' ' + x.total + '</span>').join('');
+
+  if (!picks.length) {
+    listEl.innerHTML = '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="search" data-ic-size="44"></i></div><div class="empty-title">暂无该部位的动作数据</div></div>';
+    return;
+  }
+  listEl.innerHTML = picks.map((ex, i) =>
+    '<div class="rec-item" data-name="' + Common.esc(ex.name) + '" style="margin-bottom:8px;">' +
+      '<span class="rec-idx">' + (i + 1) + '</span>' +
+      '<span><span class="rec-name">' + Common.esc(ex.name) + '</span>' +
+      '<span class="rec-muscle">' + Common.esc(ex.muscle) + ' · ' + Common.esc(ex.equipment) + '</span></span>' +
+      '<span class="rec-tags"><span class="tag tag-accent">' + Common.esc(ex.type) + '</span>' +
+      '<span class="tag">' + Common.esc(ex.difficulty) + '</span></span>' +
+    '</div>').join('');
+  listEl.querySelectorAll('.rec-item').forEach(item => {
+    item.onclick = () => Common.showExerciseDetail(item.dataset.name);
+  });
+}
+
+function renderDash() {
+  const profile = Store.getProfile();
+  const metrics = Store.getMetrics();
+  const latest = metrics[0] || {};
+  const weight = latest.weight || profile.weight;
+  const bmi = Common.calcBMI(weight, profile.height);
+  const ds = MyDevice.dailyStats();
+  const diet = Store.getDiet(Store.todayStr());
+  const kcal = diet.reduce((s, d) => s + (Number(d.kcal) || 0), 0);
+  const weekLogs = Store.getLogs().filter(l => (Date.now() - new Date(l.startedAt).getTime()) < 7 * 86400000).length;
+  const steps = MyDevice.isConnected() ? ds.steps : null;
+
+  const items = [
+    { ico: '<i class="ic" data-ic="scale"></i>', val: weight, unit: 'kg', label: '当前体重', href: 'body.html' },
+    { ico: '<i class="ic" data-ic="ruler"></i>', val: bmi || '—', unit: '', label: 'BMI ' + (Common.bmiCategory(bmi).label), href: 'body.html' },
+    { ico: '<i class="ic" data-ic="activity"></i>', val: steps ? steps.toLocaleString() : '未连接', unit: steps ? '步' : '', label: '今日步数', href: 'device.html' },
+    { ico: '<i class="ic" data-ic="nutrition"></i>', val: kcal, unit: 'kcal', label: '今日摄入', href: 'diet.html' },
+    { ico: '<i class="ic" data-ic="dumbbell"></i>', val: weekLogs, unit: '次', label: '本周训练', href: 'workout.html' },
+    { ico: '<i class="ic" data-ic="moon"></i>', val: MyDevice.isConnected() ? ds.sleep.total : '—', unit: 'h', label: '昨夜睡眠', href: 'device.html' }
+  ];
+  document.getElementById('dash').innerHTML = items.map(it =>
+    '<div class="stat" data-href="' + it.href + '" style="cursor:pointer;">' +
+      '<span class="stat-ico">' + it.ico + '</span>' +
+      '<span class="stat-val">' + it.val + (it.unit ? '<small>' + it.unit + '</small>' : '') + '</span>' +
+      '<span class="stat-label">' + Common.esc(it.label) + '</span>' +
+    '</div>').join('');
+  document.querySelectorAll('#dash .stat').forEach(s => {
+    s.onclick = () => { if (Store.isLoggedIn()) location.href = s.dataset.href; else Common.guardLogin('查看详细数据'); };
+  });
+}
+
+// 一键全身 (FR-02-11)
+document.getElementById('btn-full').onclick = function () {
+  const goal = Store.getProfile().goal;
+  const map = {
+    '增肌': ['胸大肌', '背阔肌', '股四头肌', '肩前束', '肱三头肌'],
+    '减脂': ['胸大肌', '背阔肌', '股四头肌', '腹直肌', '臀大肌'],
+    '塑形': ['臀大肌', '腹直肌', '背阔肌', '肩后束', '小腿肌群'],
+    '耐力': ['股四头肌', '腘绳肌', '背阔肌', '腹直肌', '小腿肌群']
+  };
+  selected = (map[goal] || map['增肌']).slice();
+  sync();
+  Common.toast('已根据「' + goal + '」目标分配全身部位', 'ok');
+};
+document.getElementById('btn-clear').onclick = function () { selected = []; sync(); };
+document.getElementById('btn-beginner').onclick = function () { Common.beginnerGuideModal(); };
+document.getElementById('btn-reset').onclick = function () {
+  if (typeof window.resetGLBView === 'function') window.resetGLBView();
+  else Common.toast('3D 模型加载中…', 'warn');
+};
+document.getElementById('btn-gen-plan').onclick = function () {
+  if (!selected.length) { Common.toast('请先选择训练部位', 'warn'); return; }
+  if (!Common.guardLogin('训练计划')) return;
+  localStorage.setItem('myomap:selection', JSON.stringify(selected));
+  location.href = 'plan.html';
+};
+
+// 模型加载完成后移除占位提示并重新同步选中高亮
+window.addEventListener('glb-ready', function () {
+  const ph = document.querySelector('#body-3d-container .glb-placeholder');
+  if (ph) ph.remove();
+  if (typeof window.setGLBSelection === 'function') window.setGLBSelection(selected);
+});
+
+renderChips();
+renderRecommend();
+renderDash();
+</script>
+
+<script type="importmap">
+{ "imports": { "three": "./libs/three.module.js", "three/addons/": "./libs/" } }
+</script>
+<script type="module" src="viewer3d.js?v=32"></script>
+</body>
+</html>

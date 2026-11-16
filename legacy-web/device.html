@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 智能设备</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .device-hero { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .device-icon { width: 76px; height: 76px; border-radius: 20px; background: linear-gradient(135deg, #2ecc71, #27ae60); display: flex; align-items: center; justify-content: center; font-size: 38px; box-shadow: 0 8px 24px rgba(46,204,113,0.35); }
+  .sleep-seg { display: flex; height: 26px; border-radius: 8px; overflow: hidden; }
+  .sleep-seg > div { display: flex; align-items: center; justify-content: center; font-size: 10.5px; color: #fff; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script src="assets/js/device.js"></script>
+<script>
+Common.shell({ active: 'device', title: '智能设备接入', subtitle: '手环 / 手表数据 · 多源融合 · 健康仪表盘' });
+
+function render() {
+  const content = document.getElementById('content');
+  const connected = MyDevice.isConnected();
+  const info = Store.getDevice();
+
+  if (!connected) {
+    content.innerHTML =
+      '<div class="card">' +
+        '<div class="device-hero">' +
+          '<div class="device-icon" style="background:linear-gradient(135deg,#3a3a3a,#222);box-shadow:none;"><i class="ic" data-ic="watch"></i></div>' +
+          '<div><div style="font-size:18px;font-weight:800;">连接你的智能设备</div>' +
+            '<div class="mute" style="font-size:13px;margin-top:6px;max-width:520px;line-height:1.7;">连接后系统将读取步数、心率、睡眠与运动数据，自动影响 TDEE 计算与饮食/训练建议。支持小米手环、华为手环、Apple Watch（HealthKit）。</div></div>' +
+          '<button class="btn btn-primary btn-lg" id="btn-connect" style="margin-left:auto;"><i class="ic" data-ic="link"></i> 连接设备</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="card-title"><span class="ct-ico"><i class="ic" data-ic="signal"></i></span> 支持的设备</div>' +
+        '<div class="grid grid-3">' +
+          ['<i class="ic" data-ic="watch"></i> 小米手环 / 手表', '<i class="ic" data-ic="watch"></i> 华为手环 / 手表', '<i class="ic" data-ic="watch"></i> Apple Watch'].map(d =>
+            '<div class="stat"><span class="stat-ico">' + d.slice(0,2) + '</span><span style="font-weight:600;font-size:13.5px;">' + d.slice(2) + '</span><span class="stat-label">BLE / HealthKit</span></div>').join('') +
+        '</div>' +
+      '</div>';
+    document.getElementById('btn-connect').onclick = async function () {
+      this.textContent = '连接中…'; this.disabled = true;
+      await MyDevice.connect();
+      Common.toast('设备连接成功', 'ok');
+      render();
+    };
+    return;
+  }
+
+  const ds = MyDevice.dailyStats();
+  const hr = MyDevice.heartRateHistory();
+  const records = MyDevice.exerciseRecords(7);
+  const profile = Store.getProfile();
+  const bmr = Common.calcBMR(profile) || 1600;
+  const tdee = Math.round((bmr * (Number(profile.activity) || 1.375)) + ds.calories);
+
+  content.innerHTML =
+    // 设备状态
+    '<div class="card">' +
+      '<div class="device-hero">' +
+        '<div class="device-icon"><i class="ic" data-ic="watch"></i></div>' +
+        '<div><div style="font-size:17px;font-weight:800;">' + Common.esc(info.model || 'Mi Band 8') + ' <span class="tag tag-green">已连接</span></div>' +
+          '<div class="mute" style="font-size:12.5px;margin-top:5px;">固件 ' + Common.esc(info.firmware || '2.0.1') + ' · 电量 ' + (info.battery || 87) + '% · 设备号 ' + Common.esc((info.userId || '').slice(0, 12)) + '</div></div>' +
+        '<div class="flex gap-8" style="margin-left:auto;">' +
+          '<button class="btn btn-sm btn-ghost" id="btn-sync"><i class="ic" data-ic="refresh"></i> 同步数据</button>' +
+          '<button class="btn btn-sm btn-danger" id="btn-disconnect">断开连接</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // 今日仪表盘
+    '<div class="page-head" style="margin-top:22px;"><h1 style="font-size:18px;">今日健康仪表盘</h1><p>综合体重、步数、训练、饮食、睡眠的统一视图</p></div>' +
+    '<div class="grid grid-4" id="dash"></div>' +
+
+    // 心率 + 睡眠
+    '<div class="grid grid-2" style="margin-top:18px;align-items:start;">' +
+      '<div class="card"><div class="card-title"><span class="ct-ico"><i class="ic" data-ic="heart"></i></span> 24 小时心率 <span class="ct-sub">当前 ' + ds.heartRate.current + ' bpm</span></div>' +
+        '<div id="hr-chart"></div>' +
+        '<div class="grid grid-4" style="margin-top:12px;">' +
+          [['静息', ds.heartRate.resting], ['平均', ds.heartRate.avg], ['最高', ds.heartRate.max], ['血氧', ds.spo2 + '%']].map(x =>
+            '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="card"><div class="card-title"><span class="ct-ico"><i class="ic" data-ic="moon"></i></span> 睡眠分析 <span class="ct-sub">评分 ' + ds.sleep.score + '</span></div>' +
+        (function () {
+          const s = ds.sleep;
+          const total = s.deep + s.light + s.rem || 1;
+          return '<div class="sleep-seg">' +
+            '<div style="width:' + (s.deep / total * 100) + '%;background:#3a6fd6;">深睡 ' + s.deep + 'h</div>' +
+            '<div style="width:' + (s.light / total * 100) + '%;background:#5b8def;">浅睡 ' + s.light + 'h</div>' +
+            '<div style="width:' + (s.rem / total * 100) + '%;background:#9b7bff;">REM ' + s.rem + 'h</div>' +
+          '</div>';
+        })() +
+        '<div class="grid grid-3" style="margin-top:14px;">' +
+          [['总时长', ds.sleep.total + 'h'], ['深睡', ds.sleep.deep + 'h'], ['睡眠评分', ds.sleep.score]].map(x =>
+            '<div class="stat" style="padding:12px;"><span class="stat-val" style="font-size:19px;">' + x[1] + '</span><span class="stat-label">' + x[0] + '</span></div>').join('') +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    // 运动记录
+    '<div class="card" style="margin-top:18px;">' +
+      '<div class="card-title"><span class="ct-ico"><i class="ic" data-ic="activity"></i></span> 近 7 天运动记录</div>' +
+      '<div style="overflow-x:auto;"><table class="table" id="ex-table"></table></div>' +
+    '</div>';
+
+  // 仪表盘
+  const diet = Store.getDiet(Store.todayStr());
+  const dietKcal = diet.reduce((s, d) => s + (Number(d.kcal) || 0), 0);
+  const logs = Store.getLogs().filter(l => Common.fmtDate(l.startedAt) === Store.todayStr());
+  const weight = (Store.getMetrics()[0] || {}).weight || profile.weight;
+  const items = [
+    { ico: '<i class="ic" data-ic="scale"></i>', val: weight, unit: 'kg', label: '体重' },
+    { ico: '<i class="ic" data-ic="activity"></i>', val: ds.steps.toLocaleString(), unit: '步', label: '步数' },
+    { ico: '<i class="ic" data-ic="flame"></i>', val: ds.calories, unit: 'kcal', label: '活动消耗' },
+    { ico: '<i class="ic" data-ic="nutrition"></i>', val: dietKcal, unit: 'kcal', label: '饮食摄入' },
+    { ico: '<i class="ic" data-ic="dumbbell"></i>', val: logs.length, unit: '次', label: '今日训练' },
+    { ico: '<i class="ic" data-ic="moon"></i>', val: ds.sleep.total, unit: 'h', label: '睡眠' },
+    { ico: '<i class="ic" data-ic="droplet"></i>', val: ds.spo2, unit: '%', label: '血氧' },
+    { ico: '<i class="ic" data-ic="bolt"></i>', val: tdee, unit: 'kcal', label: '综合 TDEE' }
+  ];
+  document.getElementById('dash').innerHTML = items.map(it =>
+    '<div class="stat"><span class="stat-ico">' + it.ico + '</span>' +
+      '<span class="stat-val">' + it.val + '<small>' + it.unit + '</small></span>' +
+      '<span class="stat-label">' + it.label + '</span></div>').join('');
+
+  Common.lineChart(document.getElementById('hr-chart'), [{ data: hr.map(x => x.value), color: '#ff5470' }], { height: 170 });
+
+  const t = document.getElementById('ex-table');
+  if (!records.length) t.innerHTML = '<tr><td class="mute" style="padding:20px;text-align:center;">近 7 天暂无运动记录</td></tr>';
+  else t.innerHTML = '<thead><tr><th>日期</th><th>类型</th><th>时长</th><th>消耗</th><th>距离</th><th>平均心率</th></tr></thead><tbody>' +
+    records.map(r => '<tr><td><strong>' + Common.fmtDate(r.date) + '</strong></td><td>' + Common.esc(r.type) + '</td>' +
+      '<td>' + r.duration + ' 分钟</td><td>' + r.calories + ' kcal</td><td>' + r.distance + ' km</td><td>' + r.avgHeartRate + ' bpm</td></tr>').join('') + '</tbody>';
+
+  document.getElementById('btn-sync').onclick = () => { Common.toast('数据已同步', 'ok'); render(); };
+  document.getElementById('btn-disconnect').onclick = () => {
+    Common.confirmModal('断开连接', '确定断开设备连接吗？', () => { MyDevice.disconnect(); Common.toast('已断开', 'ok'); render(); }, '断开');
+  };
+}
+
+render();
+</script>
+</body>
+</html>

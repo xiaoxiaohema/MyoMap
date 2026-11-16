@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.myomap.vue</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>/Users/xiaohema/Desktop/vue/node_modules/vite/bin/vite.js</string>
+        <string>--port</string>
+        <string>5173</string>
+        <string>--strictPort</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/xiaohema/Desktop/vue</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/myomap-vue.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/myomap-vue.err.log</string>
+</dict>
+</plist>

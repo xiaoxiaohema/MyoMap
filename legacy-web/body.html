@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyoMap · 身体数据</title>
+<script src="assets/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="assets/css/common.css?v=3">
+<style>
+  .metric-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 10px; }
+  .radar-wrap { display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="nav-mount"></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title" id="page-title"></div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </header>
+    <main class="content">
+      <div class="grid grid-4" id="top-stats" style="margin-bottom:18px;"></div>
+
+      <div class="grid grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="pencil"></i></span> 录入身体数据</div>
+          <div class="input-row">
+            <div class="field"><label class="label">日期</label><input class="input" type="date" id="f-date"></div>
+            <div class="field"><label class="label">体重 (kg)</label><input class="input" type="number" step="0.1" id="f-weight" placeholder="70.0"></div>
+          </div>
+          <div class="input-row">
+            <div class="field"><label class="label">体脂率 (%)</label><input class="input" type="number" step="0.1" id="f-fat" placeholder="18.0"></div>
+            <div class="field"><label class="label">胸围 (cm)</label><input class="input" type="number" step="0.1" id="f-chest" placeholder="100"></div>
+          </div>
+          <div class="input-row">
+            <div class="field"><label class="label">腰围 (cm)</label><input class="input" type="number" step="0.1" id="f-waist" placeholder="80"></div>
+            <div class="field"><label class="label">臀围 (cm)</label><input class="input" type="number" step="0.1" id="f-hip" placeholder="95"></div>
+          </div>
+          <div class="input-row">
+            <div class="field"><label class="label">臂围 (cm)</label><input class="input" type="number" step="0.1" id="f-arm" placeholder="36"></div>
+            <div class="field"><label class="label">大腿围 (cm)</label><input class="input" type="number" step="0.1" id="f-thigh" placeholder="56"></div>
+          </div>
+          <div class="input-row">
+            <div class="field"><label class="label">小腿围 (cm)</label><input class="input" type="number" step="0.1" id="f-calf" placeholder="38"></div>
+            <div class="field"><label class="label">备注</label><input class="input" id="f-note" placeholder="如：晨起空腹"></div>
+          </div>
+          <button class="btn btn-primary btn-block btn-lg" id="btn-save" style="margin-top:6px;"><i class="ic" data-ic="save"></i> 保存记录</button>
+          <div class="mute" style="font-size:11.5px;margin-top:10px;">提示：同一天的记录会覆盖更新。</div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="scale"></i></span> 体重趋势
+              <div class="ct-sub" style="display:flex;gap:6px;">
+                <span class="tag" data-range="7" style="cursor:pointer;">7天</span>
+                <span class="tag tag-accent" data-range="30" style="cursor:pointer;">30天</span>
+                <span class="tag" data-range="90" style="cursor:pointer;">90天</span>
+                <span class="tag" data-range="365" style="cursor:pointer;">1年</span>
+              </div>
+            </div>
+            <div id="weight-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="radar"></i></span> 体成分雷达</div>
+            <div class="radar-wrap" id="radar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="ruler"></i></span> 围度变化对比 <span class="ct-sub" id="circ-sub"></span></div>
+        <div id="circ-chart"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div class="card-title"><span class="ct-ico"><i class="ic" data-ic="history"></i></span> 历史记录</div>
+        <div style="overflow-x:auto;"><table class="table" id="history"></table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/js/store.js"></script>
+<script src="assets/js/exercises-data.js"></script>
+<script src="assets/js/icons.js?v=2"></script>
+<script src="assets/js/common.js?v=3"></script>
+<script>
+Common.shell({ active: 'body', title: '身体数据管理', subtitle: '体重 · 体脂 · 围度 · 趋势分析' });
+
+let rangeDays = 30;
+
+document.getElementById('f-date').value = Store.todayStr();
+
+function renderTop() {
+  const p = Store.getProfile();
+  const m = Store.getMetrics();
+  const latest = m[0] || {};
+  const weight = latest.weight || p.weight;
+  const bmi = Common.calcBMI(weight, p.height);
+  const bmr = Common.calcBMR(Object.assign({}, p, { weight: weight }));
+  const tdee = Common.calcTDEE(Object.assign({}, p, { weight: weight }));
+  const cat = Common.bmiCategory(bmi);
+  const prev = m[1] || {};
+  const delta = (latest.weight && prev.weight) ? (latest.weight - prev.weight) : null;
+  const fat = latest.bodyFat;
+
+  document.getElementById('top-stats').innerHTML =
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="scale"></i></span><span class="stat-val">' + weight + '<small>kg</small></span><span class="stat-label">当前体重</span>' +
+      (delta != null ? '<span class="stat-delta ' + (delta <= 0 ? 'up' : 'down') + '">' + (delta > 0 ? '↑ +' : '↓ ') + Common.round(delta, 1) + 'kg</span>' : '') + '</div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="ruler"></i></span><span class="stat-val">' + (bmi || '—') + '</span><span class="stat-label">BMI <span class="tag ' + cat.cls + '" style="font-size:10px;">' + cat.label + '</span></span></div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="flame"></i></span><span class="stat-val">' + (bmr || '—') + '<small>kcal</small></span><span class="stat-label">基础代谢 BMR</span></div>' +
+    '<div class="stat"><span class="stat-ico"><i class="ic" data-ic="bolt"></i></span><span class="stat-val">' + (tdee || '—') + '<small>kcal</small></span><span class="stat-label">每日消耗 TDEE</span></div>';
+}
+
+function renderWeightChart() {
+  const m = Store.getMetrics().filter(x => x.weight).slice().reverse();
+  const cutoff = Date.now() - rangeDays * 86400000;
+  const filtered = m.filter(x => new Date(x.date + 'T00:00:00').getTime() >= cutoff);
+  const series = [{ data: filtered.map(x => x.weight), color: '#ff6b35' }];
+  Common.lineChart(document.getElementById('weight-chart'), series, { height: 210 });
+  const el = document.getElementById('weight-chart');
+  if (filtered.length) {
+    const first = filtered[0].weight, last = filtered[filtered.length - 1].weight;
+    el.insertAdjacentHTML('afterbegin',
+      '<div class="flex gap-16" style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">' +
+      '<span>起始 <b class="highlight-num">' + first + 'kg</b></span>' +
+      '<span>当前 <b class="highlight-num">' + last + 'kg</b></span>' +
+      '<span>变化 <b style="color:' + (last - first <= 0 ? '#5fe08e' : '#ff8fa3') + '">' + (last - first > 0 ? '+' : '') + Common.round(last - first, 1) + 'kg</b></span></div>');
+  }
+}
+
+function renderRadar() {
+  const p = Store.getProfile();
+  const m = Store.getMetrics();
+  const latest = m[0] || {};
+  const weight = latest.weight || p.weight;
+  const fat = latest.bodyFat != null ? latest.bodyFat : 18;
+  const bmi = Common.calcBMI(weight, p.height) || 22;
+  // 归一化 0-100
+  const muscle = Common.clamp(100 - fat * 1.6, 20, 95);
+  const water = Common.clamp(60 - fat * 0.3, 30, 80);
+  const viscera = Common.clamp(12 - fat * 0.1, 4, 18);
+  const dims = [
+    { label: '体重', v: Common.clamp(100 - Math.abs(bmi - 22) * 4, 30, 100) },
+    { label: '体脂', v: Common.clamp(100 - fat * 2.2, 15, 100) },
+    { label: '肌肉量', v: muscle },
+    { label: '水分', v: water },
+    { label: '内脏脂肪', v: Common.clamp(100 - viscera * 4, 20, 100) },
+    { label: 'BMI', v: Common.clamp(100 - Math.abs(bmi - 22) * 4, 30, 100) }
+  ];
+  const size = 260, cx = size / 2, cy = size / 2, R = 92;
+  const n = dims.length;
+  function pt(i, r) { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; }
+  let svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">';
+  for (let g = 1; g <= 4; g++) {
+    const r = R * g / 4;
+    const pts = [];
+    for (let i = 0; i < n; i++) pts.push(pt(i, r).join(','));
+    svg += '<polygon points="' + pts.join(' ') + '" fill="none" stroke="var(--surface-3)"/>';
+  }
+  for (let i = 0; i < n; i++) { const p2 = pt(i, R); svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + p2[0] + '" y2="' + p2[1] + '" stroke="var(--surface-3)"/>'; }
+  const dpts = dims.map((d, i) => pt(i, R * d.v / 100).join(','));
+  svg += '<polygon points="' + dpts.join(' ') + '" fill="rgba(255,107,53,0.25)" stroke="#ff6b35" stroke-width="2"/>';
+  dims.forEach((d, i) => {
+    const p2 = pt(i, R + 18);
+    svg += '<text x="' + p2[0] + '" y="' + p2[1] + '" fill="rgba(232,237,245,0.7)" font-size="10.5" text-anchor="middle" dominant-baseline="middle">' + d.label + '</text>';
+    const pp = pt(i, R * d.v / 100);
+    svg += '<circle cx="' + pp[0] + '" cy="' + pp[1] + '" r="3" fill="#ff8c42"/>';
+  });
+  svg += '</svg>';
+  document.getElementById('radar').innerHTML = svg;
+}
+
+function renderCirc() {
+  const m = Store.getMetrics().slice().reverse();
+  const first = m.find(x => x.chest || x.waist || x.hip || x.arm || x.thigh || x.calf);
+  const latest = m.slice().reverse().find(x => x.chest || x.waist || x.hip || x.arm || x.thigh || x.calf);
+  const keys = [['chest', '胸围'], ['waist', '腰围'], ['hip', '臀围'], ['arm', '臂围'], ['thigh', '大腿'], ['calf', '小腿']];
+  if (!latest) { document.getElementById('circ-chart').innerHTML = '<div class="empty"><div class="empty-ico"><i class="ic" data-ic="ruler" data-ic-size="44"></i></div><div class="empty-title">暂无围度数据</div></div>'; return; }
+  const maxV = Math.max.apply(null, keys.map(k => Math.max(latest[k[0]] || 0, (first && first[k[0]]) || 0))) || 1;
+  document.getElementById('circ-sub').textContent = first && first !== latest ? '对比首次记录' : '';
+  document.getElementById('circ-chart').innerHTML = keys.map(k => {
+    const cur = latest[k[0]] || 0, ini = first ? (first[k[0]] || 0) : 0;
+    const diff = cur && ini ? Common.round(cur - ini, 1) : null;
+    return '<div style="margin-bottom:14px;">' +
+      '<div class="flex justify-between" style="font-size:12.5px;margin-bottom:5px;">' +
+        '<span>' + k[1] + '</span><span class="mute">' + (cur || '—') + ' cm' +
+        (diff != null ? ' <b style="color:' + (diff <= 0 ? '#5fe08e' : '#ff8fa3') + '">' + (diff > 0 ? '+' : '') + diff + '</b>' : '') + '</span></div>' +
+      '<div class="progress"><i style="width:' + ((cur || 0) / maxV * 100) + '%"></i></div></div>';
+  }).join('');
+}
+
+function renderHistory() {
+  const m = Store.getMetrics();
+  const t = document.getElementById('history');
+  if (!m.length) { t.innerHTML = '<tr><td class="mute" style="padding:24px;text-align:center;">暂无记录</td></tr>'; return; }
+  t.innerHTML =
+    '<thead><tr><th>日期</th><th>体重</th><th>体脂</th><th>BMI</th><th>胸/腰/臀</th><th>臂/腿/小腿</th><th>备注</th><th></th></tr></thead><tbody>' +
+    m.map(x => {
+      const bmi = Common.calcBMI(x.weight, Store.getProfile().height);
+      return '<tr>' +
+        '<td><strong>' + Common.fmtDate(x.date) + '</strong></td>' +
+        '<td>' + (x.weight != null ? x.weight + ' kg' : '—') + '</td>' +
+        '<td>' + (x.bodyFat != null ? x.bodyFat + '%' : '—') + '</td>' +
+        '<td>' + (bmi || '—') + '</td>' +
+        '<td>' + [x.chest, x.waist, x.hip].map(v => v != null ? v : '—').join(' / ') + '</td>' +
+        '<td>' + [x.arm, x.thigh, x.calf].map(v => v != null ? v : '—').join(' / ') + '</td>' +
+        '<td class="mute">' + Common.esc(x.note || '') + '</td>' +
+        '<td><button class="btn btn-sm btn-danger" data-del="' + x.id + '">删除</button></td>' +
+      '</tr>';
+    }).join('') + '</tbody>';
+  t.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    Common.confirmModal('删除记录', '确定删除这条身体数据吗？', () => { Store.deleteMetric(b.dataset.del); renderAll(); Common.toast('已删除', 'ok'); }, '删除');
+  });
+}
+
+function renderAll() { renderTop(); renderWeightChart(); renderRadar(); renderCirc(); renderHistory(); }
+
+document.getElementById('btn-save').onclick = function () {
+  const val = id => { const v = document.getElementById(id).value; return v === '' ? null : Number(v); };
+  const rec = {
+    date: document.getElementById('f-date').value || Store.todayStr(),
+    weight: val('f-weight'), bodyFat: val('f-fat'), chest: val('f-chest'), waist: val('f-waist'),
+    hip: val('f-hip'), arm: val('f-arm'), thigh: val('f-thigh'), calf: val('f-calf'),
+    note: document.getElementById('f-note').value
+  };
+  if (rec.weight == null && rec.bodyFat == null && rec.chest == null && rec.waist == null) {
+    Common.toast('请至少填写体重或一项围度', 'warn'); return;
+  }
+  Store.addMetric(rec);
+  if (rec.weight != null) Store.saveProfile({ weight: rec.weight });
+  ['f-weight', 'f-fat', 'f-chest', 'f-waist', 'f-hip', 'f-arm', 'f-thigh', 'f-calf', 'f-note'].forEach(id => document.getElementById(id).value = '');
+  Common.toast('身体数据已保存', 'ok');
+  renderAll();
+};
+
+document.querySelectorAll('[data-range]').forEach(t => t.onclick = () => {
+  document.querySelectorAll('[data-range]').forEach(x => { x.classList.remove('tag-accent'); x.classList.add('tag'); });
+  t.classList.add('tag-accent'); t.classList.remove('tag');
+  rangeDays = Number(t.dataset.range);
+  renderWeightChart();
+});
+
+renderAll();
+</script>
+</body>
+</html>

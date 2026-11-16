@@ -1,0 +1,3639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyoMap</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #1a1a1a; 
+            min-height: 100vh; 
+            color: #fff;
+        }
+        
+        /* 右侧艺术体半透明导航面板 */
+        .side-panel {
+            position: fixed;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
+            z-index: 100;
+            background: rgba(15, 15, 18, 0.35);
+            backdrop-filter: blur(20px) saturate(1.4);
+            -webkit-backdrop-filter: blur(20px) saturate(1.4);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 22px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .side-panel .logo {
+            font-family: 'Georgia', 'Songti SC', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #ff6b35;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+        }
+
+        .side-panel .logo span {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .side-divider {
+            width: 32px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            margin: 6px 0 10px;
+        }
+
+        .nav-item {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            border-radius: 16px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.65);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            user-select: none;
+        }
+
+        .nav-item .icon {
+            font-size: 22px;
+            line-height: 1;
+            transition: transform 0.3s;
+        }
+
+        .nav-item .label {
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item:hover {
+            color: #ff6b35;
+            background: rgba(255, 107, 53, 0.12);
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        .nav-item:hover .icon {
+            transform: scale(1.15);
+        }
+
+        .nav-item.active {
+            color: #ff6b35;
+            background: rgba(255, 107, 53, 0.18);
+            box-shadow: 0 4px 16px rgba(255, 107, 53, 0.25);
+        }
+
+        .nav-item .tooltip-right {
+            position: absolute;
+            right: 68px;
+            top: 50%;
+            transform: translateY(-50%) translateX(10px);
+            background: rgba(20, 20, 24, 0.9);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-item:hover .tooltip-right {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+        
+        /* ===== 计划面板样式 ===== */
+        .plan-section {
+            margin-bottom: 20px;
+        }
+        .plan-label {
+            color: rgba(255,255,255,0.85);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+        .plan-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .plan-option {
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.25s;
+            user-select: none;
+        }
+        .plan-option:hover {
+            border-color: rgba(255,107,53,0.4);
+            color: #fff;
+        }
+        .plan-option.active {
+            background: rgba(255,107,53,0.18);
+            border-color: #ff6b35;
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(255,107,53,0.25);
+        }
+
+        /* ===== 小米手环接入样式 ===== */
+        .miband-section {
+            margin: 24px 0;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(46,204,113,0.06), rgba(52,152,219,0.06));
+            border: 1px solid rgba(46,204,113,0.2);
+            border-radius: 14px;
+        }
+        .miband-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .miband-connect-btn {
+            padding: 8px 18px;
+            background: rgba(46,204,113,0.15);
+            border: 1px solid rgba(46,204,113,0.4);
+            border-radius: 20px;
+            color: #2ecc71;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .miband-connect-btn:hover:not(:disabled) {
+            background: rgba(46,204,113,0.25);
+            transform: translateY(-1px);
+        }
+        .miband-connect-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .miband-hint {
+            color: rgba(255,255,255,0.45);
+            font-size: 12px;
+            text-align: center;
+            padding: 8px 0;
+        }
+        .miband-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .miband-stat {
+            background: rgba(255,255,255,0.04);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .miband-stat-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        .miband-stat-val {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .miband-stat-val span {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            font-weight: 400;
+            margin-left: 2px;
+        }
+        .miband-stat-label {
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        /* ===== 生成计划按钮 ===== */
+        .generate-plan-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff6b35, #ff8c42);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(255,107,53,0.3);
+            letter-spacing: 1px;
+        }
+        .generate-plan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(255,107,53,0.45);
+        }
+
+        /* ===== 计划结果卡片 ===== */
+        .plan-result-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,107,53,0.25);
+            border-radius: 14px;
+            padding: 20px;
+            animation: planFadeIn 0.4s ease;
+        }
+        @keyframes planFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .plan-result-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .plan-result-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .plan-result-meta span {
+            padding: 5px 12px;
+            background: rgba(255,107,53,0.12);
+            border-radius: 14px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+        .plan-exercise-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 10px;
+        }
+        .plan-ex-idx {
+            width: 24px;
+            height: 24px;
+            background: rgba(255,107,53,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #ff6b35;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .plan-ex-name {
+            flex: 1;
+            color: #fff;
+            font-size: 14px;
+        }
+        .plan-ex-sets {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+        }
+
+        /* ===== 增强右侧导航艺术风格 ===== */
+        .side-panel {
+            background: linear-gradient(160deg, rgba(20,20,28,0.45), rgba(15,15,20,0.35));
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5),
+                        inset 0 1px 0 rgba(255,255,255,0.1),
+                        inset 0 0 30px rgba(255,107,53,0.03);
+        }
+        .side-panel .logo {
+            font-family: 'Georgia', 'Songti SC', 'STSong', serif;
+            font-style: italic;
+            background: linear-gradient(135deg, #ff6b35, #ff9d6c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+        }
+        .nav-item {
+            font-family: 'Georgia', 'Songti SC', serif;
+        }
+        .nav-item .label {
+            font-family: 'Georgia', 'Songti SC', serif;
+            letter-spacing: 1px;
+        }
+
+        /* 主容器 - 全屏3D模型 */
+        .main-container {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* 左侧人体图区域 - 全屏 */
+        .body-map-section {
+            width: 100%;
+            height: 100vh;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            position: relative;
+        }
+        
+        /* 视图切换 */
+        .view-switcher {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .view-btn {
+            padding: 10px 30px;
+            background: #333;
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .view-btn:hover {
+            background: #444;
+            color: #fff;
+        }
+        
+        .view-btn.active {
+            background: #ff6b35;
+            border-color: #ff6b35;
+            color: #fff;
+        }
+        
+        /* SVG人体图 */
+        .body-svg-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 500px;
+        }
+        
+        .muscle-region {
+            cursor: pointer;
+            transition: all 0.3s;
+            stroke: #444;
+            stroke-width: 1;
+        }
+        
+        .muscle-region:hover {
+            filter: brightness(1.5);
+            stroke: #ff6b35;
+            stroke-width: 2;
+        }
+        
+        .muscle-region.selected {
+            filter: brightness(1.8) saturate(1.2);
+            stroke: #ff6b35;
+            stroke-width: 3;
+            animation: muscle-pulse 1s infinite;
+        }
+        
+        @keyframes muscle-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+        
+        /* 肌肉颜色 - 不同肌肉群 */
+        .muscle-chest { fill: #e74c3c; }
+        .muscle-back { fill: #3498db; }
+        .muscle-shoulders-front { fill: #9b59b6; }
+        .muscle-shoulders-back { fill: #8e44ad; }
+        .muscle-biceps { fill: #e91e63; }
+        .muscle-triceps { fill: #c2185b; }
+        .muscle-forearms { fill: #ad1457; }
+        .muscle-abs { fill: #27ae60; }
+        .muscle-obliques { fill: #2ecc71; }
+        .muscle-lats { fill: #16a085; }
+        .muscle-traps { fill: #1abc9c; }
+        .muscle-quads { fill: #f39c12; }
+        .muscle-hamstrings { fill: #e67e22; }
+        .muscle-glutes { fill: #d35400; }
+        .muscle-calves { fill: #f1c40f; }
+        
+        /* 肌肉标签 */
+        .muscle-label {
+            position: absolute;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .muscle-label.active {
+            color: #ff6b35;
+            font-size: 13px;
+        }
+        
+        /* 当前选中提示 */
+        .selected-muscle-display {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px 25px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .selected-muscle-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ff6b35;
+        }
+        
+        .selected-muscle-count {
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        
+        /* 训练面板 - 从3D模型中心弹出 */
+        .exercise-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 560px;
+            max-width: 92vw;
+            max-height: 88vh;
+            background: rgba(18, 18, 22, 0.95);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            padding: 30px;
+            overflow-y: auto;
+            z-index: 90;
+            opacity: 0;
+            visibility: hidden;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(255,107,53,0.1);
+            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity 0.3s ease, visibility 0.3s ease;
+            transform-origin: center center;
+        }
+        
+        .exercise-panel.open {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 面板遮罩 */
+        .panel-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(3px);
+            z-index: 85;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .panel-backdrop.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 关闭按钮 */
+        .panel-close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+            z-index: 10;
+        }
+        .panel-close-btn:hover {
+            background: #ff6b35;
+            transform: rotate(90deg);
+        }
+        
+        /* 图片放大查看模态框 */
+        .image-zoom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            cursor: zoom-out;
+        }
+        .image-zoom-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .image-zoom-modal img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            transform: scale(0.8);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .image-zoom-modal.show img {
+            transform: scale(1);
+        }
+        .image-zoom-close {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+        }
+        .image-zoom-close:hover {
+            background: #ff6b35;
+            transform: rotate(90deg);
+        }
+        
+        /* 登录弹窗 */
+        .login-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .login-popup-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .login-popup {
+            background: linear-gradient(145deg, #1e1e24, #16161a);
+            border-radius: 20px;
+            padding: 36px 32px;
+            width: 360px;
+            max-width: 90vw;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 60px rgba(255,107,53,0.15);
+            position: relative;
+            transform: scale(0.8) translateY(20px);
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+        }
+        .login-popup-overlay.show .login-popup {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        .login-popup-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.06);
+            border: none;
+            color: #999;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+        }
+        .login-popup-close:hover {
+            background: #ff6b35;
+            color: #fff;
+            transform: rotate(90deg);
+        }
+        .login-popup-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .login-popup-subtitle {
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .login-popup-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .login-popup-input:focus {
+            border-color: #ff6b35;
+        }
+        .login-popup-input::placeholder { color: #555; }
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 13px;
+            margin: 4px 0 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .remember-me input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #ff6b35;
+            cursor: pointer;
+        }
+        .login-popup-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #ff7b3a, #ff5722);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.25s;
+            box-shadow: 0 4px 16px rgba(255,87,34,0.3);
+        }
+        .login-popup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,87,34,0.45);
+        }
+        
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            animation: header-fade-in 0.5s ease-out 0.1s both;
+        }
+        @keyframes header-fade-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .exercise-title {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .exercise-title .muscle-name { color: #ff6b35; }
+        
+        .exercise-count {
+            background: #ff6b35;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* 训练动作卡片 */
+        .exercise-cards {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .exercise-card {
+            background: rgba(30, 30, 35, 0.8);
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: card-slide-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        @keyframes card-slide-in {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .exercise-card:hover {
+            border-color: rgba(255,107,53,0.5);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(255,107,53,0.15);
+        }
+        
+        .exercise-gif-container {
+            width: 100%;
+            height: 260px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .exercise-gif {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .exercise-gif-container:hover .exercise-gif {
+            transform: scale(1.03);
+            transition: transform 0.3s ease;
+        }
+        
+        /* 放大提示 */
+        .zoom-hint {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(5px);
+            transition: all 0.25s ease;
+            border: 1px solid rgba(255,255,255,0.15);
+            pointer-events: auto;
+        }
+        .exercise-gif-container:hover .zoom-hint {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .zoom-hint:hover {
+            background: #ff6b35;
+        }
+        
+        /* 弹窗样式 */
+        .video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .video-modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .video-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .video-modal-header h3 {
+            margin: 0;
+            color: #fff;
+            font-size: 20px;
+        }
+        .video-modal-header button {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .video-modal-header button:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .modal-gif-container {
+            padding: 20px 24px 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .modal-gif {
+            width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .modal-placeholder {
+            width: 100%;
+            height: 250px;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        .big-play-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,107,35,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .big-play-btn .play-icon {
+            color: #fff;
+            font-size: 28px;
+            margin-left: 4px;
+        }
+        .modal-placeholder p {
+            color: #888;
+            margin: 0;
+        }
+        .modal-info {
+            padding: 20px 24px 24px 24px;
+        }
+        .modal-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .modal-label {
+            color: #888;
+        }
+        .modal-value {
+            color: #fff;
+            font-weight: 500;
+        }
+        .modal-section {
+            margin-top: 20px;
+        }
+        .modal-section h4 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        .modal-section p {
+            color: #ccc;
+            line-height: 1.7;
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .exercise-video-placeholder {
+            background: #222;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .play-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,107,35,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.1);
+            background: #ff6b35;
+        }
+        
+        .play-icon {
+            font-size: 24px;
+            color: #fff;
+        }
+        
+        .exercise-card-content {
+            padding: 20px;
+        }
+        
+        .exercise-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        
+        .exercise-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .meta-item {
+            background: #333;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .meta-item strong { color: #ff6b35; }
+        
+        .exercise-instructions {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .exercise-instructions h4 {
+            color: #ff6b35;
+            margin: 15px 0 8px 0;
+            font-size: 14px;
+        }
+        
+        .exercise-tips {
+            background: rgba(255,107,35,0.1);
+            border-left: 3px solid #ff6b35;
+            padding: 12px 15px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #ff6b35;
+        }
+        
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+        }
+        
+        .empty-icon {
+            font-size: 80px;
+            opacity: 0.3;
+            margin-bottom: 20px;
+        }
+        
+        .empty-text {
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .empty-hint {
+            color: #444;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        /* 登录界面 */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        
+        .login-box {
+            background: #1a1a1a;
+            border-radius: 20px;
+            padding: 40px;
+            width: 400px;
+            border: 1px solid #333;
+        }
+        
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-title span { color: #ff6b35; }
+        
+        .login-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .login-input:focus {
+            outline: none;
+            border-color: #ff6b35;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: #ff6b35;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .login-btn:hover {
+            background: #e55a2b;
+            transform: translateY(-2px);
+        }
+        
+        /* 底部工具栏 - 浮动无边框 */
+        .toolbar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            z-index: 50;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tool-btn {
+            padding: 10px 20px;
+            background: #333;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tool-btn:hover {
+            background: #444;
+        }
+        
+        .tool-btn.primary {
+            background: #ff6b35;
+        }
+        
+        .tool-btn.primary:hover {
+            background: #e55a2b;
+        }
+        
+        /* 隐藏类 */
+        .hidden { display: none !important; }
+        
+        /* 3D人体容器 */
+        
+        /* ====== 全屏3D模型容器 ====== */
+        .body-3d-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            perspective: 1400px;
+            perspective-origin: 50% 50%;
+            background: radial-gradient(ellipse at 50% 35%, #1a2332 0%, #0d1117 60%, #080b10 100%);
+            overflow: hidden;
+            cursor: grab;
+            user-select: none;
+        }
+        .body-3d-container:active {
+            cursor: grabbing;
+        }
+        
+        /* 身体卡片容器（负责3D翻转+视差） */
+        .body-card {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.12s ease-out;
+            will-change: transform;
+        }
+        
+        /* 正面/背面平面 */
+        .body-face {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .body-face.front { z-index: 2; }
+        .body-face.back {
+            transform: rotateY(180deg);
+            z-index: 1;
+        }
+        
+        /* SVG */
+        .body-svg {
+            width: auto;
+            height: 100%;
+            max-height: 100%;
+            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+            transition: filter 0.3s ease;
+        }
+        .body-3d-container:hover .body-svg {
+            filter: drop-shadow(0 12px 28px rgba(0,0,0,0.5));
+        }
+        
+        /* 肌肉路径 */
+        .muscle-path {
+            cursor: pointer;
+            transition: fill 0.25s ease, filter 0.25s ease, opacity 0.25s ease;
+            pointer-events: auto;
+        }
+        /* 悬停 */
+        .muscle-hover {
+            fill: #ff8c42 !important;
+            filter: drop-shadow(0 0 6px rgba(255,140,66,0.6)) brightness(1.1);
+        }
+        g.muscle-path.muscle-hover > * {
+            fill: #ff8c42 !important;
+            filter: drop-shadow(0 0 6px rgba(255,140,66,0.6)) brightness(1.1);
+        }
+        /* 选中 */
+        .muscle-selected {
+            fill: #ffa500 !important;
+            filter: drop-shadow(0 0 10px rgba(255,165,0,0.75)) brightness(1.15);
+        }
+        g.muscle-path.muscle-selected > * {
+            fill: #ffa500 !important;
+            filter: drop-shadow(0 0 10px rgba(255,165,0,0.75)) brightness(1.15);
+        }
+        
+        /* 视图切换按钮 */
+        .view-toggle {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 4px;
+            gap: 2px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .view-toggle button {
+            background: transparent;
+            border: none;
+            color: #8899aa;
+            padding: 6px 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .view-toggle button:hover {
+            color: #ccd5df;
+        }
+        .view-toggle button.active {
+            background: linear-gradient(135deg, #ff7b3a, #ff5722);
+            color: white;
+            box-shadow: 0 2px 10px rgba(255,90,35,0.35);
+        }
+        
+        /* 提示文字 */
+        .controls-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            z-index: 10;
+            background: rgba(0,0,0,0.35);
+            padding: 5px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            white-space: nowrap;
+        }
+        
+        /* 角落装饰光 */
+        .corner-glow {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .corner-glow.tl { top: -80px; left: -80px; background: #ff6b35; }
+        .corner-glow.br { bottom: -80px; right: -80px; background: #3a7bd5; }
+        
+        /* Tooltip */
+        .muscle-tooltip {
+            position: fixed;
+            z-index: 9999;
+            background: linear-gradient(135deg, #1f2937, #111827);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            transform: translate(-50%, -100%);
+            white-space: nowrap;
+        }
+        .muscle-tooltip.visible { opacity: 1; }
+        .muscle-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1f2937;
+        }
+
+        
+        /* 肌肉提示标签 */
+        .muscle-tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 1000;
+            border: 1px solid rgba(255, 107, 53, 0.5);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            transform: translate(-50%, -100%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        .muscle-tooltip.visible {
+            opacity: 1;
+        }
+        .muscle-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(255, 107, 53, 0.5);
+        }
+        
+        /* 3D控制提示 */
+        .controls-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            pointer-events: none;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 18px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06);
+            animation: hint-float 3s ease-in-out infinite;
+            z-index: 5;
+        }
+        @keyframes hint-float {
+            0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+            50% { transform: translateX(-50%) translateY(-6px); opacity: 0.9; }
+        }
+
+        /* ====== 动态壁纸背景层（融合 3D 人体模型） ====== */
+        /* 3D canvas 提升至壁纸层之上（渲染器透明，可透出背景） */
+        #body-3d-container canvas {
+            position: relative;
+            z-index: 1;
+            display: block;
+        }
+        .wp-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        /* 壁纸底图：缓慢呼吸 */
+        .wp-bg-img {
+            position: absolute;
+            inset: -6%;
+            background: url('wallpaper/assets/fitness-lines.jpg') center / cover no-repeat;
+            opacity: .6;
+            animation: wp-breathe 22s ease-in-out infinite;
+            will-change: transform;
+        }
+        @keyframes wp-breathe {
+            0%, 100% { transform: scale(1.02); }
+            50%      { transform: scale(1.08); }
+        }
+        /* 中央压暗：让灰白色 3D 模型从背景中跳出，仅留四周光带氛围 */
+        .wp-bg-mask {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 46% 60% at 50% 45%,
+                    rgba(5,8,14,.9) 0%,
+                    rgba(5,8,14,.62) 58%,
+                    rgba(5,8,14,.3) 100%),
+                linear-gradient(180deg,
+                    rgba(5,7,13,.6) 0%,
+                    rgba(5,7,13,.12) 22%,
+                    rgba(5,7,13,.12) 78%,
+                    rgba(5,7,13,.78) 100%);
+        }
+        /* 漂移光晕 */
+        .wp-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            mix-blend-mode: screen;
+        }
+        .wp-glow.wp-g1 {
+            width: 44vmax; height: 44vmax; left: -12%; top: -16%;
+            background: radial-gradient(circle, rgba(255,186,105,.13), transparent 65%);
+            animation: wp-drift1 26s ease-in-out infinite;
+        }
+        .wp-glow.wp-g2 {
+            width: 40vmax; height: 40vmax; right: -14%; bottom: -16%;
+            background: radial-gradient(circle, rgba(115,165,255,.1), transparent 65%);
+            animation: wp-drift2 30s ease-in-out infinite;
+        }
+        @keyframes wp-drift1 {
+            0%, 100% { transform: translate(0,0) scale(1); }
+            50%      { transform: translate(18vw, 22vh) scale(1.14); }
+        }
+        @keyframes wp-drift2 {
+            0%, 100% { transform: translate(0,0) scale(1); }
+            50%      { transform: translate(-16vw, -20vh) scale(1.1); }
+        }
+        /* 缓慢能量扫光 */
+        .wp-sweep {
+            position: absolute;
+            top: -35%; left: -70%;
+            width: 50%; height: 170%;
+            background: linear-gradient(105deg,
+                transparent 42%,
+                rgba(255,226,170,.05) 50%,
+                transparent 58%);
+            filter: blur(22px);
+            mix-blend-mode: screen;
+            animation: wp-sweep 15s cubic-bezier(.45,0,.25,1) infinite;
+        }
+        @keyframes wp-sweep {
+            0%   { left: -70%; opacity: 0; }
+            20%  { opacity: .8; }
+            70%  { opacity: .8; }
+            100% { left: 135%; opacity: 0; }
+        }
+        /* SVG 能量流线 */
+        .wp-flows {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            mix-blend-mode: screen;
+            opacity: .55;
+        }
+        .wp-flows path {
+            fill: none;
+            stroke-linecap: round;
+            stroke-dasharray: 260 1500;
+            animation: wp-flow var(--dur, 8s) linear infinite;
+            animation-delay: var(--delay, 0s);
+        }
+        @keyframes wp-flow {
+            from { stroke-dashoffset: 0; }
+            to   { stroke-dashoffset: -1760; }
+        }
+        /* 上浮能量粒子 */
+        .wp-particles { position: absolute; inset: 0; }
+        .wp-particle {
+            position: absolute;
+            bottom: -2vh;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                rgba(255,235,195,.9) 0%,
+                rgba(255,205,135,.3) 60%,
+                transparent 100%);
+            animation: wp-rise var(--dur) linear infinite;
+            animation-delay: var(--delay);
+            opacity: 0;
+        }
+        @keyframes wp-rise {
+            0%   { transform: translate(0,0) scale(.6); opacity: 0; }
+            12%  { opacity: var(--o, .5); }
+            85%  { opacity: var(--o, .5); }
+            100% { transform: translate(var(--sway, 40px), -104vh) scale(1); opacity: 0; }
+        }
+        /* 胶片颗粒 + 暗角 */
+        .wp-grain {
+            position: absolute;
+            inset: -50%;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+            opacity: .04;
+            animation: wp-grain 1.2s steps(4) infinite;
+        }
+        @keyframes wp-grain {
+            0%   { transform: translate(0,0); }
+            25%  { transform: translate(-2%, 1.5%); }
+            50%  { transform: translate(1.5%, -2%); }
+            75%  { transform: translate(-1%, -1%); }
+            100% { transform: translate(0,0); }
+        }
+        .wp-vignette {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse 95% 100% at 50% 45%,
+                transparent 60%,
+                rgba(3,5,10,.5) 100%);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .wp-bg-img, .wp-glow, .wp-sweep, .wp-flows path, .wp-particle, .wp-grain {
+                animation: none !important;
+            }
+        }
+
+        /* 登录页：同款壁纸背景 + 毛玻璃登录卡 */
+        .login-overlay {
+            background: #05070d url('wallpaper/assets/fitness-lines.jpg') center / cover no-repeat;
+        }
+        .login-overlay::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(4,6,12,.72);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+        .login-box {
+            position: relative;
+            background: rgba(20,22,28,.55);
+            backdrop-filter: blur(22px) saturate(1.4);
+            -webkit-backdrop-filter: blur(22px) saturate(1.4);
+            border: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 20px 60px rgba(0,0,0,.5),
+                        inset 0 1px 0 rgba(255,255,255,.08);
+        }
+    </style>
+    <!-- Three.js -->
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <div class="login-title">🏋️ <span>MyoMap</span></div>
+            <input type="text" class="login-input" id="username" value="admin" placeholder="用户名">
+            <input type="password" class="login-input" id="password" value="123456" placeholder="密码">
+            <button class="login-btn" onclick="login()">登录系统</button>
+            <div id="login-error" style="color:#e74c3c;text-align:center;margin-top:15px;font-size:13px;"></div>
+        </div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <!-- 右侧艺术体半透明导航面板 -->
+    <div class="side-panel" id="side-panel">
+        <div class="logo">Myo<span>Map</span></div>
+        <div class="side-divider"></div>
+        <div class="nav-item" onclick="showMuscleLibrary()" title="训练库">
+            <span class="icon">💪</span>
+            <span class="label">训练库</span>
+            <span class="tooltip-right">肌肉训练动作库</span>
+        </div>
+        <div class="nav-item" onclick="showPlanGenerator()" title="计划生成">
+            <span class="icon">📋</span>
+            <span class="label">计划</span>
+            <span class="tooltip-right">生成训练计划</span>
+        </div>
+        <div class="nav-item" onclick="showAiChat()" title="AI助手">
+            <span class="icon">🤖</span>
+            <span class="label">AI</span>
+            <span class="tooltip-right">AI 健身助手</span>
+        </div>
+        <div class="nav-item" onclick="showFoodAnalyze()" title="饮食分析">
+            <span class="icon">🍎</span>
+            <span class="label">饮食</span>
+            <span class="tooltip-right">饮食营养分析</span>
+        </div>
+        <div class="nav-item" onclick="window.open('wallpaper/index.html','_blank')" title="动态壁纸">
+            <span class="icon">🌌</span>
+            <span class="label">壁纸</span>
+            <span class="tooltip-right">健身流动动态壁纸</span>
+        </div>
+        <div class="side-divider"></div>
+        <div class="nav-item" onclick="resetView()" title="重置视角">
+            <span class="icon">🎯</span>
+            <span class="label">复位</span>
+            <span class="tooltip-right">重置模型视角</span>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 全屏3D人体模型 -->
+        <div class="body-map-section">
+            <div class="body-3d-container" id="body-3d-container">
+                <!-- 动态壁纸背景层（位于透明 3D canvas 之下） -->
+                <div class="wp-bg" aria-hidden="true">
+                    <div class="wp-bg-img"></div>
+                    <div class="wp-bg-mask"></div>
+                    <div class="wp-glow wp-g1"></div>
+                    <div class="wp-glow wp-g2"></div>
+                    <svg class="wp-flows" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+                        <defs>
+                            <linearGradient id="wpGold" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%"  stop-color="rgba(255,210,140,0)"/>
+                                <stop offset="45%" stop-color="rgba(255,214,150,.8)"/>
+                                <stop offset="55%" stop-color="rgba(255,248,230,.95)"/>
+                                <stop offset="100%" stop-color="rgba(255,210,140,0)"/>
+                            </linearGradient>
+                            <linearGradient id="wpCool" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%"  stop-color="rgba(150,190,255,0)"/>
+                                <stop offset="50%" stop-color="rgba(190,215,255,.7)"/>
+                                <stop offset="100%" stop-color="rgba(150,190,255,0)"/>
+                            </linearGradient>
+                        </defs>
+                        <path stroke="url(#wpGold)" stroke-width="1.4"
+                              d="M 585 615 C 470 665, 330 725, 268 652 C 226 596, 358 575, 432 612"
+                              style="--dur:7.5s;--delay:-1s"/>
+                        <path stroke="url(#wpGold)" stroke-width="1.4"
+                              d="M 1018 602 C 1122 558, 1205 562, 1192 642 C 1178 732, 1078 702, 1008 662"
+                              style="--dur:8.5s;--delay:-3.2s"/>
+                        <path stroke="url(#wpGold)" stroke-width="1.2"
+                              d="M 706 282 C 622 218, 538 218, 528 282 C 520 332, 602 322, 662 302"
+                              style="--dur:7s;--delay:-2.1s"/>
+                        <path stroke="url(#wpGold)" stroke-width="1.2"
+                              d="M 894 282 C 978 218, 1062 218, 1072 282 C 1080 332, 998 322, 938 302"
+                              style="--dur:7.8s;--delay:-.6s"/>
+                        <path stroke="url(#wpCool)" stroke-width=".7" opacity=".6"
+                              d="M -120 470 C 380 330, 780 590, 1720 380"
+                              style="--dur:13s"/>
+                        <path stroke="url(#wpGold)" stroke-width=".7" opacity=".5"
+                              d="M -120 660 C 500 510, 920 760, 1720 545"
+                              style="--dur:15s;--delay:-5s"/>
+                    </svg>
+                    <div class="wp-sweep"></div>
+                    <div class="wp-particles" id="wp-particles"></div>
+                    <div class="wp-grain"></div>
+                    <div class="wp-vignette"></div>
+                </div>
+                <div class="controls-hint">🖱️ 拖动旋转 · 滚轮缩放 · 点击肌肉选择</div>
+            </div>
+            <div class="muscle-tooltip" id="muscle-tooltip"></div>
+        </div>
+        
+        <!-- 面板遮罩 -->
+        <div class="panel-backdrop" id="panel-backdrop" onclick="closeExercisePanel()"></div>
+        
+        <!-- 训练动作浮层面板 -->
+        <div class="exercise-panel" id="exercise-panel">
+            <button class="panel-close-btn" onclick="closeExercisePanel()">×</button>
+            <div class="empty-state">
+                <div class="empty-icon">💪</div>
+                <div class="empty-text">选择肌肉部位查看训练动作</div>
+                <div class="empty-hint">点击人体图中任意肌肉区域</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片放大查看模态框 -->
+    <div class="image-zoom-modal" id="image-zoom-modal" onclick="closeZoomImage()">
+        <button class="image-zoom-close" onclick="event.stopPropagation();closeZoomImage()">×</button>
+        <img id="zoom-image" src="" alt="放大图片">
+    </div>
+
+    <!-- 登录弹窗（生成计划时触发） -->
+    <div class="login-popup-overlay" id="login-popup-overlay" onclick="closeLoginPopup()">
+        <div class="login-popup" onclick="event.stopPropagation()">
+            <button class="login-popup-close" onclick="closeLoginPopup()">×</button>
+            <div class="login-popup-title">🔐 登录后生成训练计划</div>
+            <div class="login-popup-subtitle">保存并同步你的专属训练方案</div>
+            <input type="text" class="login-popup-input" id="popup-username" placeholder="用户名">
+            <input type="password" class="login-popup-input" id="popup-password" placeholder="密码">
+            <label class="remember-me">
+                <input type="checkbox" id="popup-remember">
+                <span>记住我</span>
+            </label>
+            <button class="login-popup-btn" onclick="popupLogin()">立即登录</button>
+            <div id="popup-login-error" style="color:#e74c3c;text-align:center;margin-top:12px;font-size:13px;"></div>
+        </div>
+    </div>
+
+    <!-- 底部工具栏已移除 -->
+
+    <script>
+        const BASE = 'http://localhost:8081';
+        let token = '';
+        let currentView = 'front';
+        let selectedMuscle = '';
+        
+        // 训练数据库
+        const exerciseDB = {
+            '胸大肌': [
+                { name: '杠铃卧推', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0025-EIeI8Vf.gif', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: '杠铃+卧推架',
+                  instructions: '躺在卧推架上，双手握住杠铃，下降至胸部位置后推起。保持肘部约45度角，避免过度外展。',
+                  tips: '核心收紧，臀部贴紧 bench，避免弓背。下降时控制速度，推起时爆发用力。' },
+                { name: '哑铃飞鸟', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0308-yz9nUhF.gif', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '仰卧在平凳上，双手持哑铃向两侧展开，感受胸肌拉伸后合拢。',
+                  tips: '动作缓慢，专注于胸肌的拉伸和收缩，不要使用过大重量。' },
+                { name: '俯卧撑', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/1273-wigSg76.gif', sets: '4组', reps: '15-20次', difficulty: '初级', equipment: '无',
+                  instructions: '双手撑地，身体保持一条直线，下降至胸部接近地面后推起。',
+                  tips: '核心全程收紧，避免塌腰或撅臀。可调整手间距改变刺激角度。' },
+                { name: '上斜卧推', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0169-Vh0GsK4.gif', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: '杠铃+上斜凳',
+                  instructions: '在上斜凳(30-45度)上进行卧推，重点刺激上胸。',
+                  tips: '角度不宜过大，否则会过多刺激肩部。' },
+                { name: '绳索夹胸', gif: '', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '双手握住绳索手柄，从两侧向胸前合拢，挤压胸肌。',
+                  tips: '动作终点时短暂停顿，充分挤压胸肌。' },
+            ],
+            '背阔肌': [
+                { name: '引体向上', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/3293-72BC5Za.gif', sets: '4组', reps: '6-10次', difficulty: '高级', equipment: '单杠',
+                  instructions: '双手宽握单杠，将身体拉起直至下巴过杠，缓慢下降。',
+                  tips: '避免借力摆动，专注于背阔肌发力。初学者可用助力带或弹力带辅助。' },
+                { name: '杠铃划船', gif: '', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '俯身约45度，双手握杠铃向腹部拉起，感受背部收缩。',
+                  tips: '保持背部挺直，避免借力。拉起时挤压背阔肌。' },
+                { name: '单臂哑铃划船', gif: '', sets: '3组', reps: '10-12次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '一手一脚支撑在凳上，另一手持哑铃向腰部拉起。',
+                  tips: '充分拉伸和收缩，避免扭转身体借力。' },
+                { name: '坐姿绳索划船', gif: '', sets: '4组', reps: '10-12次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '坐姿握住手柄，向腹部拉起，挤压背部。',
+                  tips: '保持躯干稳定，避免过度前后摆动。' },
+                { name: '高位下拉', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0673-ecpY0rH.gif', sets: '4组', reps: '10-12次', difficulty: '初级', equipment: '下拉机',
+                  instructions: '宽握横杆，下拉至上胸部，控制速度还原。',
+                  tips: '下拉时身体略微后倾，感受背阔肌拉伸。' },
+            ],
+            '肱二头肌': [
+                { name: '杠铃弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0031-25GPyDY.gif', sets: '4组', reps: '8-12次', difficulty: '初级', equipment: '杠铃',
+                  instructions: '双手握杠铃，肘部固定，向上弯举至肩部附近。',
+                  tips: '避免借力摆动，专注于二头肌收缩。可使用曲杆减轻手腕压力。' },
+                { name: '哑铃交替弯举', gif: '', sets: '3组', reps: '10-12次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '双手各持哑铃，交替弯举，可在顶部旋转手腕。',
+                  tips: '下降时控制速度，感受二头肌拉伸。' },
+                { name: '锤式弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0313-slDvUAU.gif', sets: '3组', reps: '10-12次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '双手持哑铃拳眼相对，向上弯举保持中立握位。',
+                  tips: '这个动作能很好地刺激肱肌和肱桡肌。' },
+                { name: '斜托弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0195-P2lNrGL.gif', sets: '3组', reps: '10-12次', difficulty: '中级', equipment: '斜托凳+哑铃',
+                  instructions: '坐在斜托凳上，手臂固定，向上弯举。',
+                  tips: '固定肘部可更好地孤立刺激二头肌。' },
+            ],
+            '肱三头肌': [
+                { name: '绳索下压', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0201-3ZflifB.gif', sets: '4组', reps: '10-15次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '双手握住绳索，向下压至手臂完全伸直。',
+                  tips: '动作终点短暂停顿，挤压三头肌。可尝试不同握法。' },
+                { name: '窄距卧推', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0751-WcHl7ru.gif', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '双手窄握杠铃(约15cm间距)，进行卧推。',
+                  tips: '握距过窄可能伤手腕，保持适当间距。' },
+                { name: '过头臂屈伸', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/1722-1xHyxys.gif', sets: '3组', reps: '10-12次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '双手持哑铃举过头顶，向后弯曲手臂再伸直。',
+                  tips: '保持肘部固定，避免外展。' },
+                { name: '俯身臂屈伸', gif: '', sets: '3组', reps: '10-12次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '俯身一手一脚支撑，另一手持哑铃向后伸直手臂。',
+                  tips: '肘部保持固定，专注于三头肌收缩。' },
+            ],
+            '肩前束': [
+                { name: '哑铃前平举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0310-3eGE2JC.gif', sets: '3组', reps: '10-15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '双手持哑铃，向前平举至肩高，控制下降。',
+                  tips: '可交替或同时进行，避免借力摆动。' },
+                { name: '杠铃前平举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0041-b2Uoz54.gif', sets: '3组', reps: '10-12次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '双手握杠铃，向前平举至肩高。',
+                  tips: '动作缓慢，专注于肩前束发力。' },
+            ],
+            '肩后束': [
+                { name: '俯身哑铃飞鸟', gif: '', sets: '4组', reps: '10-15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '俯身约90度，双手持哑铃向两侧展开。',
+                  tips: '动作终点挤压肩后束，控制速度。' },
+                { name: '面拉', gif: '', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '双手握绳索，拉向面部高度，向两侧展开。',
+                  tips: '这个动作对肩后束和上背部都很有效。' },
+                { name: '反向飞鸟机', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0993-sTfvVsG.gif', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '飞鸟机',
+                  instructions: '坐在反向飞鸟机上，向两侧展开手臂。',
+                  tips: '调整座椅高度确保针对肩后束。' },
+            ],
+            '腹直肌': [
+                { name: '卷腹', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0685-oLrKqDH.gif', sets: '4组', reps: '15-20次', difficulty: '初级', equipment: '无',
+                  instructions: '仰卧，双手放于胸前或耳侧，向上卷起上背部。',
+                  tips: '不要完全坐起，专注于腹肌收缩。下背部始终贴地。' },
+                { name: '仰卧抬腿', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0689-Hgs6Nl1.gif', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '无',
+                  instructions: '仰卧，双腿并拢向上抬起至90度，缓慢下降。',
+                  tips: '下背部贴紧地面，避免借力。' },
+                { name: '平板支撑', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/3665-hCjGsRQ.gif', sets: '3组', reps: '30-60秒', difficulty: '初级', equipment: '无',
+                  instructions: '双手撑地，身体保持一条直线，保持规定时间。',
+                  tips: '核心全程收紧，避免塌腰。' },
+                { name: '绳索卷腹', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0685-oLrKqDH.gif', sets: '3组', reps: '12-15次', difficulty: '中级', equipment: '绳索机',
+                  instructions: '跪姿握住绳索，向下卷腹。',
+                  tips: '专注于腹肌收缩，避免用髋部借力。' },
+            ],
+            '腹外斜肌': [
+                { name: '侧卧卷腹', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0685-oLrKqDH.gif', sets: '3组', reps: '15次', difficulty: '初级', equipment: '无',
+                  instructions: '侧卧，一手放于耳侧，向上卷起侧面身体。',
+                  tips: '专注于侧腹收缩，避免扭转。' },
+                { name: '俄罗斯转体', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0687-XVDdcoj.gif', sets: '3组', reps: '20次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '坐姿双脚离地，双手持重物左右转体。',
+                  tips: '保持核心稳定，控制转体速度。' },
+                { name: '木砍动作', gif: '', sets: '3组', reps: '10次', difficulty: '中级', equipment: '哑铃/药球',
+                  instructions: '站立双手持重物，从高处斜向砍向低处。',
+                  tips: '动作流畅，专注于侧腹发力。' },
+            ],
+            '股四头肌': [
+                { name: '杠铃深蹲', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0102-oR7O9LW.gif', sets: '4组', reps: '6-10次', difficulty: '高级', equipment: '杠铃',
+                  instructions: '杠铃放于肩上，下蹲至大腿平行地面或更低，然后站起。',
+                  tips: '核心收紧，膝盖与脚尖方向一致，避免内扣。初学者先掌握动作。' },
+                { name: '腿举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0760-7zdxRTl.gif', sets: '4组', reps: '10-15次', difficulty: '初级', equipment: '腿举机',
+                  instructions: '坐在腿举机上，双脚踩踏板向上推起。',
+                  tips: '调整脚位可改变刺激重点。不要锁死膝盖。' },
+                { name: '腿屈伸', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0585-my33uHU.gif', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '腿屈伸机',
+                  instructions: '坐在机上，向上伸直双腿，挤压股四头肌。',
+                  tips: '这个动作很好地孤立刺激股四头肌。' },
+                { name: '箭步蹲', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0054-t8iSghb.gif', sets: '3组', reps: '10次', difficulty: '中级', equipment: '哑铃',
+                  instructions: '双手持哑铃，向前迈一步下蹲，后腿膝盖接近地面。',
+                  tips: '保持躯干直立，前腿膝盖不超过脚尖。' },
+                { name: '前蹲', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0042-zG0zs85.gif', sets: '4组', reps: '6-10次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '杠铃放于前肩，下蹲至大腿平行地面。',
+                  tips: '前蹲更强调股四头肌，需要更好的灵活性。' },
+            ],
+            '腘绳肌': [
+                { name: '腿弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0586-17lJ1kr.gif', sets: '4组', reps: '10-15次', difficulty: '初级', equipment: '腿弯举机',
+                  instructions: '俯卧在机上，向上弯起双腿。',
+                  tips: '动作终点挤压腘绳肌，控制下降速度。' },
+                { name: '罗马尼亚硬拉', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0085-wQ2c4XD.gif', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '双手握杠铃，膝盖微屈，俯身至杠铃接近膝盖。',
+                  tips: '专注于腘绳肌拉伸，保持背部挺直。' },
+                { name: '臀桥', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/3561-GibBPPg.gif', sets: '3组', reps: '15次', difficulty: '初级', equipment: '无',
+                  instructions: '仰卧，双脚踩地，向上抬起臀部。',
+                  tips: '顶部挤压臀部和腘绳肌。可单腿进行增加难度。' },
+                { name: 'Nordic屈膝', gif: '', sets: '3组', reps: '5-8次', difficulty: '高级', equipment: '无',
+                  instructions: '跪姿，同伴固定脚踝，缓慢向前倾倒身体。',
+                  tips: '非常有效的腘绳肌训练，但难度较高。' },
+            ],
+            '臀大肌': [
+                { name: '臀推', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/3236-Pjbc0Kt.gif', sets: '4组', reps: '10-15次', difficulty: '中级', equipment: '杠铃+凳',
+                  instructions: '背部靠在凳上，杠铃放于髋部，向上推起臀部。',
+                  tips: '顶部充分挤压臀肌，这是最强的臀肌训练动作。' },
+                { name: '臀桥', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/3561-GibBPPg.gif', sets: '3组', reps: '15-20次', difficulty: '初级', equipment: '无',
+                  instructions: '仰卧，双脚踩地，向上抬起臀部至身体成直线。',
+                  tips: '顶部挤压臀肌，可单腿增加难度。' },
+                { name: '单腿臀桥', gif: '', sets: '3组', reps: '10次', difficulty: '中级', equipment: '无',
+                  instructions: '仰卧，一腿抬起，另一脚踩地推起臀部。',
+                  tips: '更好地孤立刺激单侧臀肌。' },
+                { name: '臀大肌伸展', gif: '', sets: '3组', reps: '12次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '跪姿，一腿向后蹬伸。',
+                  tips: '专注于臀肌收缩，避免腰部借力。' },
+            ],
+            '小腿肌群': [
+                { name: '站姿提踵', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/1375-yl2IYyy.gif', sets: '4组', reps: '15-20次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '站立双手持哑铃，向上提起脚跟。',
+                  tips: '顶部短暂停顿，充分挤压小腿肌。' },
+                { name: '坐姿提踵', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0594-bOOdeyc.gif', sets: '3组', reps: '15-20次', difficulty: '初级', equipment: '提踵机',
+                  instructions: '坐在机上，双脚踩踏板向上提起。',
+                  tips: '坐姿更强调比目鱼肌。' },
+                { name: '单腿提踵', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0999-9JprnPh.gif', sets: '3组', reps: '12次', difficulty: '中级', equipment: '无',
+                  instructions: '单腿站立，向上提起脚跟。',
+                  tips: '可手持哑铃增加难度。' },
+            ],
+            '斜方肌': [
+                { name: '杠铃耸肩', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0095-dG7tG5y.gif', sets: '4组', reps: '10-15次', difficulty: '初级', equipment: '杠铃',
+                  instructions: '双手握杠铃，向上耸起肩部，控制下降。',
+                  tips: '动作终点短暂停顿，挤压斜方肌。' },
+                { name: '哑铃耸肩', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0406-NJzBsGJ.gif', sets: '3组', reps: '10-15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '双手持哑铃，向上耸起肩部。',
+                  tips: '可尝试不同握距改变刺激角度。' },
+                { name: '过头耸肩', gif: '', sets: '3组', reps: '10次', difficulty: '中级', equipment: '哑铃',
+                  instructions: '双手持哑铃举过头顶，向上耸肩。',
+                  tips: '这个动作更好地刺激上斜方肌。' },
+            ],
+            '中背部': [
+                { name: '反向飞鸟', gif: '', sets: '3组', reps: '10-15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '俯身双手持哑铃向两侧展开。',
+                  tips: '专注于上背部收缩，避免借力。' },
+                { name: '面拉', gif: '', sets: '3组', reps: '12-15次', difficulty: '初级', equipment: '绳索机',
+                  instructions: '双手握绳索拉向面部高度。',
+                  tips: '对肩后束和上背部都很有效。' },
+                { name: 'T杆划船', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/1349-BgljGjd.gif', sets: '4组', reps: '8-12次', difficulty: '中级', equipment: 'T杆',
+                  instructions: '俯身握住T杆向腹部拉起。',
+                  tips: '保持背部挺直，挤压中背部。' },
+            ],
+            '下背部': [
+                { name: '硬拉', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0157-eGDudUV.gif', sets: '4组', reps: '5-8次', difficulty: '高级', equipment: '杠铃',
+                  instructions: '双手握杠铃，从地面拉起至站立姿势。',
+                  tips: '保持背部挺直，核心全程收紧。这是最强的整体力量动作。' },
+                { name: '背部伸展', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0573-rUXfn3R.gif', sets: '3组', reps: '10-15次', difficulty: '初级', equipment: '背部伸展机',
+                  instructions: '俯身在机上，向上抬起上背部。',
+                  tips: '专注于下背部收缩，避免过度伸展。' },
+                { name: '早安式', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0044-XlZ4lAC.gif', sets: '3组', reps: '10次', difficulty: '中级', equipment: '杠铃',
+                  instructions: '杠铃放于肩上，膝盖微屈，缓慢俯身。',
+                  tips: '专注于下背部拉伸，保持背部挺直。' },
+            ],
+            '前臂肌群': [
+                { name: '腕弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/1016-vUTfFHw.gif', sets: '3组', reps: '15-20次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '坐姿前臂放于腿上，向上弯举手腕。',
+                  tips: '可正握或反握刺激不同肌群。' },
+                { name: '反向腕弯举', gif: 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/videos/0994-Ezpnw9d.gif', sets: '3组', reps: '15次', difficulty: '初级', equipment: '哑铃',
+                  instructions: '前臂放于腿上，拳眼向下，向上弯举。',
+                  tips: '这个动作刺激前臂伸肌群。' },
+                { name: '农夫行走', gif: '', sets: '3组', reps: '30秒', difficulty: '中级', equipment: '重物',
+                  instructions: '双手持重物行走规定时间。',
+                  tips: '这个动作全面提升前臂力量和握力。' },
+            ],
+            '头': []
+        };
+        
+        // 登录
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const res = await fetch(`${BASE}/user/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (data.code === 1) {
+                    token = data.data.token;
+                    document.getElementById('login-overlay').classList.add('hidden');
+                    initMuscleMap();
+                } else {
+                    document.getElementById('login-error').textContent = data.msg || '登录失败';
+                }
+            } catch (e) {
+                // 后端未启动时，本地模式直接进入页面查看3D模型
+                document.getElementById('login-overlay').classList.add('hidden');
+                initMuscleMap();
+            }
+        }
+        
+        // 初始化肌肉图
+        function initMuscleMap() {
+            document.querySelectorAll('.muscle-region').forEach(region => {
+                region.addEventListener('click', () => {
+                    const muscle = region.dataset.muscle;
+                    selectMuscle(muscle, region);
+                });
+            });
+        }
+        
+        // 选择肌肉
+        function selectMuscle(muscle, element) {
+            selectedMuscle = muscle;
+            
+            // 更新高亮
+            document.querySelectorAll('.muscle-region').forEach(r => r.classList.remove('selected'));
+            if (element) {
+                element.classList.add('selected');
+                // 同名肌肉全部高亮
+                document.querySelectorAll(`.muscle-region[data-muscle="${muscle}"]`).forEach(r => r.classList.add('selected'));
+            }
+            
+            // 显示训练动作并打开面板
+            showExercises(muscle);
+            openExercisePanel();
+        }
+        
+        // 打开训练面板
+        function openExercisePanel() {
+            document.getElementById('exercise-panel').classList.add('open');
+            document.getElementById('panel-backdrop').classList.add('show');
+        }
+        
+        // 关闭训练面板
+        function closeExercisePanel() {
+            document.getElementById('exercise-panel').classList.remove('open');
+            document.getElementById('panel-backdrop').classList.remove('show');
+            // 清除3D模型选中状态
+            if (typeof window.resetGLBView === 'function') {
+                // 不重置视角，只清除选中
+            }
+        }
+        
+        // 放大查看图片
+        function zoomImage(src) {
+            const modal = document.getElementById('image-zoom-modal');
+            const img = document.getElementById('zoom-image');
+            img.src = src;
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭图片放大
+        function closeZoomImage() {
+            const modal = document.getElementById('image-zoom-modal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // ESC 关闭放大
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const zoomModal = document.getElementById('image-zoom-modal');
+                if (zoomModal && zoomModal.classList.contains('show')) {
+                    closeZoomImage();
+                } else if (document.getElementById('login-popup-overlay').classList.contains('show')) {
+                    closeLoginPopup();
+                } else if (document.getElementById('exercise-panel').classList.contains('open')) {
+                    closeExercisePanel();
+                }
+            }
+        });
+        
+        // 显示登录弹窗
+        function showLoginPopup() {
+            // 回填记住的账号密码
+            const saved = localStorage.getItem('remember_me');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    document.getElementById('popup-username').value = data.username || '';
+                    document.getElementById('popup-password').value = data.password || '';
+                    document.getElementById('popup-remember').checked = true;
+                } catch (e) {}
+            }
+            document.getElementById('login-popup-overlay').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭登录弹窗
+        function closeLoginPopup() {
+            document.getElementById('login-popup-overlay').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        // 弹窗登录
+        async function popupLogin() {
+            const username = document.getElementById('popup-username').value;
+            const password = document.getElementById('popup-password').value;
+            const remember = document.getElementById('popup-remember').checked;
+            const errEl = document.getElementById('popup-login-error');
+            errEl.textContent = '';
+            
+            // 记住我：保存或清除账号密码
+            if (remember) {
+                localStorage.setItem('remember_me', JSON.stringify({ username, password }));
+            } else {
+                localStorage.removeItem('remember_me');
+            }
+            
+            try {
+                const res = await fetch(`${BASE}/user/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                
+                if (data.code === 1) {
+                    token = data.data.token;
+                    closeLoginPopup();
+                    // 登录成功后执行生成计划
+                    generatePlan();
+                } else {
+                    errEl.textContent = data.msg || '登录失败';
+                }
+            } catch (e) {
+                // 后端未启动时，模拟登录成功并生成计划
+                closeLoginPopup();
+                setTimeout(() => generatePlan(), 300);
+            }
+        }
+        
+        // 显示训练动作
+        // 训练库 - 显示肌肉训练动作总览
+        function showMuscleLibrary() {
+            setActiveNav(0);
+            const muscles = [
+                { name: '胸大肌', icon: '🫁', en: 'chest' },
+                { name: '背阔肌', icon: '🦴', en: 'back' },
+                { name: '三角肌', icon: '💪', en: 'shoulder' },
+                { name: '肱二头肌', icon: '💪', en: 'bicep' },
+                { name: '肱三头肌', icon: '💪', en: 'tricep' },
+                { name: '股四头肌', icon: '🦵', en: 'quad' },
+                { name: '小腿肌', icon: '🦶', en: 'calf' },
+                { name: '腹肌', icon: '🔥', en: 'abs' }
+            ];
+            const panel = document.getElementById('exercise-panel');
+            panel.innerHTML = `<div class="exercise-header">
+                <div class="exercise-title"><span class="muscle-name">💪</span> 肌肉训练库</div>
+            </div>
+            <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                ${muscles.map(m => `
+                    <div class="muscle-card" onclick="showExercises('${m.en}')" 
+                         style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+                                border-radius:14px;padding:16px;cursor:pointer;text-align:center;
+                                transition:all 0.3s;"
+                         onmouseover="this.style.background='rgba(255,107,53,0.12)';this.style.borderColor='rgba(255,107,53,0.4)'"
+                         onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(255,255,255,0.08)'">
+                        <div style="font-size:28px;margin-bottom:6px;">${m.icon}</div>
+                        <div style="color:#fff;font-weight:600;font-size:13px;">${m.name}</div>
+                    </div>
+                `).join('')}
+            </div>`;
+            openExercisePanel();
+        }
+
+        // 计划生成入口
+        function showPlanGenerator() {
+            setActiveNav(1);
+            showPlanPanel();
+        }
+
+        // 重置3D视角
+        function resetView() {
+            setActiveNav(-1);
+            if (typeof resetGLBView === 'function') resetGLBView();
+            closeExercisePanel();
+        }
+
+        // 设置激活的导航项
+        function setActiveNav(index) {
+            const items = document.querySelectorAll('#side-panel .nav-item');
+            items.forEach((item, i) => {
+                if (i === index) item.classList.add('active');
+                else item.classList.remove('active');
+            });
+        }
+
+        function showExercises(muscle) {
+            const exercises = exerciseDB[muscle] || [];
+            const panel = document.getElementById('exercise-panel');
+            
+            if (exercises.length === 0) {
+                panel.innerHTML = `<button class="panel-close-btn" onclick="closeExercisePanel()">×</button>
+                    <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <div class="empty-text">暂无该部位的训练数据</div>
+                    <div class="empty-hint">请选择其他肌肉部位</div>
+                </div>`;
+                return;
+            }
+            
+            let html = `<button class="panel-close-btn" onclick="closeExercisePanel()">×</button>
+                <div class="exercise-header">
+                <div class="exercise-title">
+                    <span class="muscle-name">${muscle}</span> 训练动作
+                </div>
+                <div class="exercise-count">${exercises.length} 个动作</div>
+            </div>
+            <div class="exercise-cards">`;
+            
+            exercises.forEach((ex, i) => {
+                html += `<div class="exercise-card" style="animation-delay: ${i * 0.08}s">
+                    <div class="exercise-gif-container">
+                        ${ex.gif ? `<img src="${ex.gif}" alt="${ex.name}" class="exercise-gif" onclick="zoomImage('${ex.gif}')" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                        <div class="exercise-video-placeholder" style="display:none">
+                            <div class="play-btn" onclick="event.stopPropagation();playVideo('${ex.name}')">
+                                <span class="play-icon">▶</span>
+                            </div>
+                        </div>
+                        <div class="zoom-hint" onclick="event.stopPropagation();zoomImage('${ex.gif}')">🔍 点击放大</div>` : `<div class="exercise-video-placeholder">
+                            <div class="play-btn" onclick="playVideo('${ex.name}')">
+                                <span class="play-icon">▶</span>
+                            </div>
+                        </div>`}
+                    </div>
+                    <div class="exercise-card-content">
+                        <div class="exercise-name">${ex.name}</div>
+                        <div class="exercise-meta">
+                            <span class="meta-item"><strong>${ex.sets}</strong></span>
+                            <span class="meta-item"><strong>${ex.reps}</strong></span>
+                            <span class="meta-item">${ex.difficulty}</span>
+                            <span class="meta-item">${ex.equipment}</span>
+                        </div>
+                        <div class="exercise-instructions">
+                            <h4>动作说明</h4>
+                            ${ex.instructions}
+                        </div>
+                        <div class="exercise-tips">💡 ${ex.tips}</div>
+                    </div>
+                </div>`;
+            });
+            
+            html += '</div>';
+            panel.innerHTML = html;
+        }
+        
+        // 视图切换
+        function setView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('front-view').classList.toggle('hidden', view !== 'front');
+            document.getElementById('back-view').classList.toggle('hidden', view !== 'back');
+            
+            // 清除选择
+            document.querySelectorAll('.muscle-region').forEach(r => r.classList.remove('selected'));
+            selectedMuscle = '';
+            
+            // 关闭并重置面板
+            closeExercisePanel();
+            document.getElementById('exercise-panel').innerHTML = `<button class="panel-close-btn" onclick="closeExercisePanel()">×</button>
+                <div class="empty-state">
+                <div class="empty-icon">💪</div>
+                <div class="empty-text">选择肌肉部位查看训练动作</div>
+                <div class="empty-hint">点击人体图中任意肌肉区域</div>
+            </div>`;
+        }
+        
+        // 播放视频 - 显示动作详情弹窗
+        function playVideo(name) {
+            for (const muscle in exerciseDB) {
+                const ex = exerciseDB[muscle].find(e => e.name === name);
+                if (ex) {
+                    const modal = document.createElement('div');
+                    modal.className = 'video-modal';
+                    const gifHtml = ex.gif 
+                        ? `<img src="${ex.gif}" alt="${ex.name}" class="modal-gif" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                           <div class="modal-placeholder" style="display:none">
+                               <div class="big-play-btn"><span class="play-icon">▶</span></div>
+                               <p>加载失败</p>
+                           </div>`
+                        : `<div class="modal-placeholder">
+                               <div class="big-play-btn"><span class="play-icon">▶</span></div>
+                               <p>暂无演示</p>
+                           </div>`;
+                    modal.innerHTML = `
+                        <div class="video-modal-content">
+                            <div class="video-modal-header">
+                                <h3>${name}</h3>
+                                <button onclick="this.closest('.video-modal').remove()">✕</button>
+                            </div>
+                            <div class="modal-gif-container">${gifHtml}</div>
+                            <div class="modal-info">
+                                <div class="modal-info-row">
+                                    <span class="modal-label">难度</span>
+                                    <span class="modal-value">${ex.difficulty}</span>
+                                </div>
+                                <div class="modal-info-row">
+                                    <span class="modal-label">器械</span>
+                                    <span class="modal-value">${ex.equipment}</span>
+                                </div>
+                                <div class="modal-info-row">
+                                    <span class="modal-label">组数</span>
+                                    <span class="modal-value">${ex.sets}</span>
+                                </div>
+                                <div class="modal-info-row">
+                                    <span class="modal-label">次数</span>
+                                    <span class="modal-value">${ex.reps}</span>
+                                </div>
+                                <div class="modal-section">
+                                    <h4>📝 动作说明</h4>
+                                    <p>${ex.instructions}</p>
+                                </div>
+                                <div class="modal-section">
+                                    <h4>💡 训练技巧</h4>
+                                    <p>${ex.tips}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    modal.onclick = (e) => {
+                        if (e.target === modal) modal.remove();
+                    };
+                    document.body.appendChild(modal);
+                    return;
+                }
+            }
+        }
+        
+        // 加载统计数据
+        async function loadStats() {
+            try {
+                const [bodyData, calories, workouts] = await Promise.all([
+                    fetchAPI('/bodydata/history'),
+                    fetchAPI('/food/calories/2026-07-03'),
+                    fetchAPI('/workout/list')
+                ]);
+                
+                if (bodyData.code === 1 && bodyData.data.length > 0) {
+                    const latest = bodyData.data[0];
+                    document.getElementById('stat-weight').textContent = latest.weight;
+                    document.getElementById('stat-bmi').textContent = latest.bmi;
+                }
+                
+                if (calories.code === 1) {
+                    document.getElementById('stat-calories').textContent = calories.data;
+                }
+                
+                if (workouts.code === 1) {
+                    document.getElementById('stat-workouts').textContent = workouts.data.length;
+                }
+            } catch (e) {
+                console.log('加载统计数据失败', e);
+            }
+        }
+        
+        // API请求
+        async function fetchAPI(url, method = 'GET', body = null) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = token;
+            
+            const options = { method, headers };
+            if (body) options.body = JSON.stringify(body);
+            
+            const res = await fetch(`${BASE}${url}`, options);
+            return await res.json();
+        }
+        
+        // AI助手
+        function showAiChat() {
+            setActiveNav(2);
+            const panel = document.getElementById('exercise-panel');
+            panel.innerHTML = `<div class="exercise-header">
+                <div class="exercise-title"><span class="muscle-name">🤖</span> AI健身助手</div>
+            </div>
+            <div style="padding:20px;">
+                <input type="text" id="ai-question" placeholder="例如：如何增肌？" 
+                       style="width:100%;padding:14px;background:#222;border:1px solid #333;border-radius:10px;color:#fff;margin-bottom:15px;">
+                <button onclick="aiChat()" style="width:100%;padding:14px;background:#ff6b35;border:none;border-radius:10px;color:#fff;font-weight:600;cursor:pointer;">
+                    智能问答
+                </button>
+                <div id="ai-result" style="margin-top:20px;"></div>
+            </div>`;
+        }
+        
+        async function aiChat() {
+            const question = document.getElementById('ai-question').value;
+            if (!question) return;
+            
+            try {
+                const data = await fetchAPI('/ai/chat', 'POST', { question });
+                const resultDiv = document.getElementById('ai-result');
+                resultDiv.innerHTML = `<div style="background:#1a1a1a;border-radius:12px;padding:20px;border-left:3px solid #ff6b35;">
+                    <div style="color:#ff6b35;margin-bottom:10px;">Q: ${data.data.question}</div>
+                    <div style="color:#ccc;line-height:1.6;">A: ${data.data.answer}</div>
+                </div>`;
+            } catch (e) {
+                document.getElementById('ai-result').innerHTML = `<div style="color:#e74c3c;">请求失败: ${e.message}</div>`;
+            }
+        }
+        
+        // 饮食分析
+        function showFoodAnalyze() {
+            setActiveNav(3);
+            const panel = document.getElementById('exercise-panel');
+            panel.innerHTML = `<div class="exercise-header">
+                <div class="exercise-title"><span class="muscle-name">🍎</span> 饮食分析</div>
+            </div>
+            <div style="padding:20px;">
+                <input type="text" id="food-name" placeholder="食物名称" 
+                       style="width:100%;padding:14px;background:#222;border:1px solid #333;border-radius:10px;color:#fff;margin-bottom:10px;">
+                <input type="number" id="food-amount" placeholder="摄入量(克)" 
+                       style="width:100%;padding:14px;background:#222;border:1px solid #333;border-radius:10px;color:#fff;margin-bottom:15px;">
+                <button onclick="analyzeFood()" style="width:100%;padding:14px;background:#ff6b35;border:none;border-radius:10px;color:#fff;font-weight:600;cursor:pointer;">
+                    AI营养分析
+                </button>
+                <div id="food-result" style="margin-top:20px;"></div>
+            </div>`;
+        }
+        
+        async function analyzeFood() {
+            const foodName = document.getElementById('food-name').value;
+            const amount = document.getElementById('food-amount').value;
+            if (!foodName || !amount) return;
+            
+            try {
+                const data = await fetchAPI('/food/analyze', 'POST', {
+                    foodName, amount,
+                    calories: amount * 1.5,
+                    protein: amount * 0.2,
+                    fat: amount * 0.1,
+                    carbohydrate: amount * 0.5
+                });
+                
+                document.getElementById('food-result').innerHTML = `<div style="background:#1a1a1a;border-radius:12px;padding:20px;border-left:3px solid #ff6b35;">
+                    <div style="color:#ff6b35;margin-bottom:10px;">✓ ${foodName} (${amount}g)</div>
+                    <div style="color:#ccc;line-height:1.6;">${data.data.aiAnalysis}</div>
+                </div>`;
+            } catch (e) {
+                document.getElementById('food-result').innerHTML = `<div style="color:#e74c3c;">请求失败: ${e.message}</div>`;
+            }
+        }
+        
+        // ===== 小米手环数据接入接口 =====
+        const MiBandAPI = {
+            connected: false,
+            deviceInfo: null,
+
+            // 连接手环（模拟 OAuth 授权流程，后期替换为真实 SDK）
+            async connect() {
+                return new Promise((resolve) => {
+                    if (this.connected) { resolve(true); return; }
+                    // 模拟授权弹窗流程
+                    setTimeout(() => {
+                        this.connected = true;
+                        this.deviceInfo = {
+                            model: 'Mi Band 8',
+                            firmware: '2.0.1',
+                            battery: 87,
+                            userId: 'mock_user_001'
+                        };
+                        resolve(true);
+                    }, 1200);
+                });
+            },
+
+            // 获取今日统计数据
+            async getDailyStats() {
+                // TODO: 接入真实小米手环开放平台 API
+                // 真实接口: GET https://api.mi.com/health/v1/daily?date=YYYY-MM-DD
+                return {
+                    date: new Date().toISOString().slice(0, 10),
+                    steps: 8642,
+                    calories: 412,
+                    distance: 5.8,
+                    heartRate: {
+                        current: 72,
+                        resting: 58,
+                        max: 142,
+                        avg: 76
+                    },
+                    sleep: {
+                        total: 7.5,
+                        deep: 1.8,
+                        light: 4.2,
+                        rem: 1.5,
+                        score: 82
+                    },
+                    stress: 32,
+                    spo2: 98,
+                    exerciseMinutes: 45
+                };
+            },
+
+            // 获取心率历史（24小时）
+            async getHeartRateHistory() {
+                // TODO: 接入真实小米手环 API
+                // 真实接口: GET https://api.mi.com/health/v1/heartrate?range=24h
+                const hours = [];
+                for (let i = 0; i < 24; i++) {
+                    hours.push({
+                        hour: i,
+                        value: 55 + Math.floor(Math.random() * 40)
+                    });
+                }
+                return hours;
+            },
+
+            // 获取睡眠详情
+            async getSleepData() {
+                // TODO: 接入真实小米手环 API
+                return {
+                    bedtime: '23:15',
+                    wakeup: '06:45',
+                    duration: 7.5,
+                    deepSleep: 1.8,
+                    lightSleep: 4.2,
+                    remSleep: 1.5,
+                    awake: 0.5,
+                    score: 82,
+                    efficiency: 92
+                };
+            },
+
+            // 获取运动记录
+            async getExerciseRecords(days = 7) {
+                // TODO: 接入真实小米手环 API
+                const types = ['跑步', '骑行', '游泳', '力量训练', '瑜伽'];
+                const records = [];
+                for (let i = 0; i < days; i++) {
+                    if (Math.random() > 0.4) {
+                        records.push({
+                            date: new Date(Date.now() - i * 86400000).toISOString().slice(0, 10),
+                            type: types[Math.floor(Math.random() * types.length)],
+                            duration: 20 + Math.floor(Math.random() * 60),
+                            calories: 150 + Math.floor(Math.random() * 400),
+                            distance: (Math.random() * 10).toFixed(1),
+                            avgHeartRate: 110 + Math.floor(Math.random() * 50)
+                        });
+                    }
+                }
+                return records;
+            },
+
+            // 断开连接
+            disconnect() {
+                this.connected = false;
+                this.deviceInfo = null;
+            }
+        };
+
+        // 显示计划生成面板
+        function showPlanPanel() {
+            const panel = document.getElementById('exercise-panel');
+            const muscleLabel = selectedMuscle ? mapMuscleName(selectedMuscle) || selectedMuscle : '未选择';
+            
+            panel.innerHTML = `
+                <button class="panel-close-btn" onclick="closeExercisePanel()">×</button>
+                <div class="exercise-header">
+                    <div class="exercise-title"><span class="muscle-name">📋</span> 训练计划生成器</div>
+                </div>
+                <div style="padding:20px;max-height:75vh;overflow-y:auto;">
+                    <!-- 当前选中部位 -->
+                    <div style="margin-bottom:20px;padding:14px 18px;background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.25);border-radius:12px;">
+                        <div style="color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:4px;">当前训练部位</div>
+                        <div style="color:#fff;font-size:18px;font-weight:700;">${muscleLabel}</div>
+                    </div>
+
+                    <!-- 训练目标 -->
+                    <div class="plan-section">
+                        <div class="plan-label">🎯 训练目标</div>
+                        <div class="plan-options" id="goal-options">
+                            <div class="plan-option active" data-val="增肌">💪 增肌</div>
+                            <div class="plan-option" data-val="减脂">🔥 减脂</div>
+                            <div class="plan-option" data-val="塑形">✨ 塑形</div>
+                            <div class="plan-option" data-val="耐力">🏃 耐力</div>
+                        </div>
+                    </div>
+
+                    <!-- 难度 -->
+                    <div class="plan-section">
+                        <div class="plan-label">⚡ 难度等级</div>
+                        <div class="plan-options" id="diff-options">
+                            <div class="plan-option active" data-val="1">🌱 入门</div>
+                            <div class="plan-option" data-val="2">🔥 进阶</div>
+                            <div class="plan-option" data-val="3">💀 专业</div>
+                        </div>
+                    </div>
+
+                    <!-- 训练频率 -->
+                    <div class="plan-section">
+                        <div class="plan-label">📅 每周训练天数</div>
+                        <div class="plan-options" id="freq-options">
+                            <div class="plan-option" data-val="2">2天</div>
+                            <div class="plan-option active" data-val="3">3天</div>
+                            <div class="plan-option" data-val="4">4天</div>
+                            <div class="plan-option" data-val="5">5天</div>
+                            <div class="plan-option" data-val="6">6天</div>
+                        </div>
+                    </div>
+
+                    <!-- 计划周期 -->
+                    <div class="plan-section">
+                        <div class="plan-label">🗓️ 计划周期</div>
+                        <div class="plan-options" id="dur-options">
+                            <div class="plan-option" data-val="1">1周</div>
+                            <div class="plan-option active" data-val="4">4周</div>
+                            <div class="plan-option" data-val="8">8周</div>
+                            <div class="plan-option" data-val="12">12周</div>
+                        </div>
+                    </div>
+
+                    <!-- 小米手环数据接入 -->
+                    <div class="miband-section">
+                        <div class="miband-header">
+                            <div class="plan-label" style="margin:0;">⌚ 小米手环数据接入</div>
+                            <button class="miband-connect-btn" id="miband-btn" onclick="connectMiBand()">连接手环</button>
+                        </div>
+                        <div class="miband-status" id="miband-status" style="display:none;">
+                            <div class="miband-info" id="miband-info"></div>
+                            <div class="miband-stats" id="miband-stats"></div>
+                        </div>
+                        <div class="miband-hint" id="miband-hint">点击「连接手环」获取你的运动数据，生成更精准的个性化计划</div>
+                    </div>
+
+                    <!-- 生成按钮 -->
+                    <button class="generate-plan-btn" onclick="executeGeneratePlan()">🚀 生成训练计划</button>
+
+                    <!-- 计划结果 -->
+                    <div id="plan-result" style="margin-top:20px;"></div>
+                </div>
+            `;
+
+            // 绑定选项点击
+            setTimeout(() => {
+                document.querySelectorAll('.plan-options').forEach(group => {
+                    group.querySelectorAll('.plan-option').forEach(opt => {
+                        opt.onclick = () => {
+                            group.querySelectorAll('.plan-option').forEach(o => o.classList.remove('active'));
+                            opt.classList.add('active');
+                        };
+                    });
+                });
+            }, 50);
+
+            openExercisePanel();
+        }
+
+        // 连接小米手环
+        async function connectMiBand() {
+            const btn = document.getElementById('miband-btn');
+            const statusEl = document.getElementById('miband-status');
+            const hintEl = document.getElementById('miband-hint');
+            const infoEl = document.getElementById('miband-info');
+            const statsEl = document.getElementById('miband-stats');
+
+            btn.textContent = '连接中...';
+            btn.disabled = true;
+
+            const ok = await MiBandAPI.connect();
+            if (ok) {
+                btn.textContent = '已连接 ✓';
+                btn.style.background = 'rgba(46, 204, 113, 0.2)';
+                btn.style.borderColor = 'rgba(46, 204, 113, 0.5)';
+                hintEl.style.display = 'none';
+                statusEl.style.display = 'block';
+
+                const info = MiBandAPI.deviceInfo;
+                infoEl.innerHTML = `
+                    <div style="color:#2ecc71;font-size:13px;margin-bottom:10px;">
+                        ✓ 已连接 ${info.model} · 电量 ${info.battery}%
+                    </div>
+                `;
+
+                const stats = await MiBandAPI.getDailyStats();
+                statsEl.innerHTML = `
+                    <div class="miband-stats-grid">
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">❤️</div>
+                            <div class="miband-stat-val">${stats.heartRate.current}<span>bpm</span></div>
+                            <div class="miband-stat-label">心率</div>
+                        </div>
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">👟</div>
+                            <div class="miband-stat-val">${stats.steps.toLocaleString()}</div>
+                            <div class="miband-stat-label">步数</div>
+                        </div>
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">🔥</div>
+                            <div class="miband-stat-val">${stats.calories}<span>kcal</span></div>
+                            <div class="miband-stat-label">消耗</div>
+                        </div>
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">😴</div>
+                            <div class="miband-stat-val">${stats.sleep.total}<span>h</span></div>
+                            <div class="miband-stat-label">睡眠</div>
+                        </div>
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">🩸</div>
+                            <div class="miband-stat-val">${stats.spo2}<span>%</span></div>
+                            <div class="miband-stat-label">血氧</div>
+                        </div>
+                        <div class="miband-stat">
+                            <div class="miband-stat-icon">💧</div>
+                            <div class="miband-stat-val">${stats.stress}</div>
+                            <div class="miband-stat-label">压力</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;padding:10px 14px;background:rgba(46,204,113,0.08);border-radius:8px;color:rgba(255,255,255,0.7);font-size:12px;">
+                        💡 基于你的手环数据（静息心率 ${stats.heartRate.resting}bpm · 睡眠评分 ${stats.sleep.score}），计划将自动调整训练强度
+                    </div>
+                `;
+            }
+        }
+
+        // 执行生成计划
+        async function executeGeneratePlan() {
+            const goal = document.querySelector('#goal-options .plan-option.active')?.dataset.val || '增肌';
+            const diff = parseInt(document.querySelector('#diff-options .plan-option.active')?.dataset.val || '2');
+            const freq = parseInt(document.querySelector('#freq-options .plan-option.active')?.dataset.val || '3');
+            const dur = parseInt(document.querySelector('#dur-options .plan-option.active')?.dataset.val || '4');
+            const resultEl = document.getElementById('plan-result');
+
+            resultEl.innerHTML = '<div style="text-align:center;padding:30px;color:rgba(255,255,255,0.6);">⏳ 正在生成个性化训练计划...</div>';
+
+            // 如果已连接手环，获取数据用于个性化
+            let miBandData = null;
+            if (MiBandAPI.connected) {
+                miBandData = await MiBandAPI.getDailyStats();
+            }
+
+            try {
+                const data = await fetchAPI('/plan/generate', 'POST', {
+                    bodyPart: selectedMuscle,
+                    goal,
+                    difficulty: diff,
+                    frequency: freq,
+                    duration: dur,
+                    miBandData
+                });
+
+                if (data.code === 1) {
+                    renderPlanResult(data.data, goal, freq, dur, miBandData);
+                } else {
+                    // 后端不可用时生成本地模拟计划
+                    renderMockPlan(goal, diff, freq, dur, miBandData);
+                }
+            } catch (e) {
+                // 后端不可用时生成本地模拟计划
+                renderMockPlan(goal, diff, freq, dur, miBandData);
+            }
+        }
+
+        // 渲染计划结果
+        function renderPlanResult(plan, goal, freq, dur, miBandData) {
+            const resultEl = document.getElementById('plan-result');
+            resultEl.innerHTML = `
+                <div class="plan-result-card">
+                    <div class="plan-result-title">🎉 ${plan.planName || '训练计划已生成'}</div>
+                    <div class="plan-result-meta">
+                        <span>🎯 ${goal}</span>
+                        <span>📅 ${freq}天/周</span>
+                        <span>🗓️ ${dur}周</span>
+                        <span>⏱️ ${plan.duration || '60'}分钟/次</span>
+                    </div>
+                    <div style="margin-top:16px;color:rgba(255,255,255,0.7);font-size:13px;line-height:1.8;">
+                        ${plan.description || '计划已根据你的身体数据和目标智能生成'}
+                    </div>
+                    ${miBandData ? `<div style="margin-top:12px;padding:10px;background:rgba(46,204,113,0.1);border-radius:8px;font-size:12px;color:#2ecc71;">⌚ 已结合小米手环数据优化</div>` : ''}
+                </div>
+            `;
+        }
+
+        // 本地模拟计划（后端不可用时）
+        function renderMockPlan(goal, diff, freq, dur, miBandData) {
+            const exercises = {
+                'chest': ['杠铃卧推', '哑铃飞鸟', '俯卧撑', '上斜哑铃卧推'],
+                'back': ['引体向上', '硬拉', '坐姿划船', '高位下拉'],
+                'shoulder': ['哑铃推举', '侧平举', '前平举', '面拉'],
+                'bicep': ['杠铃弯举', '哑铃弯举', '锤式弯举'],
+                'tricep': ['窄距卧推', '三头下压', '颈后臂屈伸'],
+                'quad': ['深蹲', '腿举', '箭步蹲', '腿屈伸'],
+                'calf': ['提踵', '坐姿提踵'],
+                'abs': ['卷腹', '平板支撑', '俄罗斯转体', '悬垂举腿']
+            };
+            const muscleLabel = selectedMuscle ? mapMuscleName(selectedMuscle) || selectedMuscle : '全身';
+            const list = exercises[selectedMuscle] || exercises['chest'];
+            const diffLabel = ['', '入门', '进阶', '专业'][diff];
+            const hrAdjust = miBandData ? (miBandData.heartRate.resting > 70 ? '（建议降低强度）' : '（强度适中）') : '';
+
+            const resultEl = document.getElementById('plan-result');
+            resultEl.innerHTML = `
+                <div class="plan-result-card">
+                    <div class="plan-result-title">🎉 ${muscleLabel}训练计划</div>
+                    <div class="plan-result-meta">
+                        <span>🎯 ${goal}</span>
+                        <span>⚡ ${diffLabel}</span>
+                        <span>📅 ${freq}天/周</span>
+                        <span>🗓️ ${dur}周</span>
+                    </div>
+                    <div style="margin-top:16px;">
+                        <div style="color:#fff;font-weight:600;margin-bottom:10px;">📋 训练动作安排</div>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            ${list.map((ex, i) => `
+                                <div class="plan-exercise-item">
+                                    <span class="plan-ex-idx">${i + 1}</span>
+                                    <span class="plan-ex-name">${ex}</span>
+                                    <span class="plan-ex-sets">${3 + diff}组 × ${8 + diff * 2}次</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;padding:12px;background:rgba(255,107,53,0.08);border-radius:8px;font-size:13px;color:rgba(255,255,255,0.7);">
+                        💡 建议：每次训练前热身5-10分钟，组间休息${60 - diff * 15}秒${hrAdjust}
+                    </div>
+                    ${miBandData ? `<div style="margin-top:10px;padding:10px;background:rgba(46,204,113,0.1);border-radius:8px;font-size:12px;color:#2ecc71;">⌚ 已结合手环数据：静息心率${miBandData.heartRate.resting}bpm · 睡眠评分${miBandData.sleep.score}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        // 页面加载后初始化 - 直接进入主页面，不自动弹登录
+        document.addEventListener('DOMContentLoaded', () => {
+            // 隐藏登录遮罩，直接展示主页面
+            const loginOverlay = document.getElementById('login-overlay');
+            if (loginOverlay) loginOverlay.classList.add('hidden');
+            initMuscleMap();
+            spawnWallpaperParticles();
+        });
+
+        // 动态壁纸背景：生成漂浮能量粒子
+        function spawnWallpaperParticles() {
+            const layer = document.getElementById('wp-particles');
+            if (!layer) return;
+            const COUNT = 18;
+            for (let i = 0; i < COUNT; i++) {
+                const p = document.createElement('span');
+                p.className = 'wp-particle';
+                const size = (Math.random() * 2.2 + 1).toFixed(1);
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.left = (Math.random() * 100).toFixed(2) + 'vw';
+                p.style.setProperty('--dur', (Math.random() * 10 + 14).toFixed(1) + 's');
+                p.style.setProperty('--delay', (-Math.random() * 20).toFixed(1) + 's');
+                p.style.setProperty('--sway', (Math.random() * 120 - 60).toFixed(0) + 'px');
+                p.style.setProperty('--o', (Math.random() * .35 + .15).toFixed(2));
+                layer.appendChild(p);
+            }
+        }
+
+
+
+        
+
+        // SVG肌肉图常量（正/背面）
+        const SVG_FRONT = `<svg viewBox="0 0 300 750" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <linearGradient id="sf" x1=".3" y1="0" x2=".8" y2="1"><stop offset="0%" stop-color="#f2d5b5"/><stop offset="100%" stop-color="#dbb895"/></linearGradient>
+  <linearGradient id="mf" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#e8aa7a"/><stop offset="100%" stop-color="#c08050"/></linearGradient>
+  <linearGradient id="mfl" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#f0b888"/><stop offset="100%" stop-color="#cc8c5c"/></linearGradient>
+  <linearGradient id="mfd" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#d49968"/><stop offset="100%" stop-color="#a46c3c"/></linearGradient>
+  <linearGradient id="mfv" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#c88e5e"/><stop offset="100%" stop-color="#966030"/></linearGradient>
+  <radialGradient id="hl" cx=".45" cy=".3" r=".65"><stop offset="0%" stop-color="#fff5e0" stop-opacity=".45"/><stop offset="100%" stop-color="#fff5e0" stop-opacity="0"/></radialGradient>
+  <filter id="ms"><feDropShadow dx="0" dy="1.2" stdDeviation=".8" flood-color="#5a3418" flood-opacity=".22"/></filter>
+</defs>
+
+<!-- ========= 身体轮廓 ========= -->
+<g id="body-outline">
+  <!-- 头 -->
+  <ellipse cx="150" cy="46" rx="27" ry="32" fill="url(#sf)"/>
+  <!-- 耳 -->
+  <ellipse cx="123" cy="48" rx="4" ry="7" fill="#d4ad82"/>
+  <ellipse cx="177" cy="48" rx="4" ry="7" fill="#d4ad82"/>
+  <!-- 下颌 -->
+  <path d="M128 68 Q150 84 172 68 Q162 78 150 80 Q138 78 128 68Z" fill="#d4ad82"/>
+  <!-- 脖子 -->
+  <path d="M137 80 L135 100 Q150 106 165 100 L163 80Z" fill="url(#sf)"/>
+  <!-- 锁骨区 -->
+  <path d="M135 100 Q130 106 108 112 Q98 116 94 122 L96 124 Q108 118 134 110 L150 108 L166 110 Q192 118 204 124 L206 122 Q202 116 192 112 Q170 106 165 100Z" fill="#d4ad82"/>
+
+  <!-- 躯干 -->
+  <path d="
+    M94 124
+    C86 134 82 152 82 172
+    C82 200 86 228 92 252
+    C96 268 98 282 96 298
+    L96 298
+    C92 318 90 338 94 356
+    C98 368 104 376 110 382
+    L110 382
+    C108 400 108 420 112 438
+    C116 452 124 460 134 466
+    L134 466
+    C136 472 136 480 138 488
+    L138 500
+    C138 508 136 516 134 524
+    Q128 538 126 556
+    L126 570
+    C128 590 134 608 142 620
+    L142 620
+    Q134 640 130 666
+    Q128 690 132 710
+    L132 710
+    C130 718 130 728 134 736
+    L134 746
+    Q136 750 140 750
+    L148 750
+    C152 750 152 746 152 740
+    L152 720
+    Q154 698 156 678
+    L156 678
+    Q158 658 160 640
+    L160 620
+    L160 620
+    Q158 596 156 576
+    L156 560
+    C156 550 156 540 156 530
+    L156 530
+    L156 500
+    L156 466
+    L166 466
+    C176 460 184 452 188 438
+    C192 420 192 400 190 382
+    L190 382
+    C196 376 202 368 206 356
+    C210 338 208 318 204 298
+    L204 298
+    C202 282 204 268 208 252
+    C214 228 218 200 218 172
+    C218 152 214 134 206 124
+    Z
+  " fill="url(#sf)"/>
+
+  <!-- 右臂 (解剖右侧 = 画面左侧) -->
+  <path d="
+    M94 124
+    C84 128 76 138 72 154
+    C66 178 64 206 66 234
+    C68 258 74 278 82 294
+    C86 302 90 308 94 310
+    C98 306 100 298 100 290
+    C98 268 96 244 96 220
+    C96 198 96 176 98 156
+    C98 142 96 132 94 124Z
+  " fill="url(#sf)"/>
+  <!-- 左臂 -->
+  <path d="
+    M206 124
+    C216 128 224 138 228 154
+    C234 178 236 206 234 234
+    C232 258 226 278 218 294
+    C214 302 210 308 206 310
+    C202 306 200 298 200 290
+    C202 268 204 244 204 220
+    C204 198 204 176 202 156
+    C202 142 204 132 206 124Z
+  " fill="url(#sf)"/>
+
+  <!-- 右前臂 -->
+  <path d="
+    M94 310
+    C88 322 82 340 78 360
+    C74 382 72 404 74 424
+    C76 440 82 452 90 460
+    C96 464 102 460 106 452
+    C104 432 104 410 102 388
+    C100 368 98 348 96 332
+    C94 320 94 314 94 310Z
+  " fill="url(#sf)"/>
+  <!-- 左前臂 -->
+  <path d="
+    M206 310
+    C212 322 218 340 222 360
+    C226 382 228 404 226 424
+    C224 440 218 452 210 460
+    C204 464 198 460 194 452
+    C196 432 196 410 198 388
+    C200 368 202 348 204 332
+    C206 320 206 314 206 310Z
+  " fill="url(#sf)"/>
+
+  <!-- 手 -->
+  <ellipse cx="88" cy="466" rx="10" ry="14" fill="#d4ad82"/>
+  <ellipse cx="212" cy="466" rx="10" ry="14" fill="#d4ad82"/>
+</g>
+
+<!-- 高光 -->
+<ellipse cx="150" cy="240" rx="48" ry="140" fill="url(#hl)" opacity=".6"/>
+
+<!-- ========= 肌肉层 ========= -->
+<g id="muscles-front">
+
+  <!-- 斜方肌(上) -->
+  <path data-muscle="斜方肌" class="muscle-path" d="
+    M140 94
+    C134 90 128 92 118 98
+    L108 106 Q130 104 150 102 Q170 104 192 106
+    L182 98 C172 92 166 90 160 94
+    Q155 98 150 98 Q145 98 140 94Z
+  " fill="url(#mfv)" filter="url(#ms)"/>
+
+  <!-- 三角肌 右 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M96 122
+    C88 128 80 142 78 160
+    C78 176 82 190 88 200
+    C94 204 100 200 104 192
+    C104 172 104 154 104 140
+    C104 130 100 124 96 122Z
+  " fill="url(#mfl)" filter="url(#ms)"/>
+  <!-- 三角肌 左 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M204 122
+    C212 128 220 142 222 160
+    C222 176 218 190 212 200
+    C206 204 200 200 196 192
+    C196 172 196 154 196 140
+    C196 130 200 124 204 122Z
+  " fill="url(#mfl)" filter="url(#ms)"/>
+
+  <!-- 胸大肌 右 -->
+  <path data-muscle="胸大肌" class="muscle-path" d="
+    M108 120
+    C102 130 98 150 98 172
+    C100 190 108 206 128 218
+    C138 222 146 218 148 210
+    C146 192 144 172 142 158
+    C138 142 126 128 116 122Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+  <!-- 胸大肌 左 -->
+  <path data-muscle="胸大肌" class="muscle-path" d="
+    M192 120
+    C198 130 202 150 202 172
+    C200 190 192 206 172 218
+    C162 222 154 218 152 210
+    C154 192 156 172 158 158
+    C162 142 174 128 184 122Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+  <!-- 胸肌中线 -->
+  <line x1="150" y1="120" x2="150" y2="215" stroke="#a06838" stroke-width=".8" opacity=".3"/>
+
+  <!-- 肱二头肌 右 -->
+  <path data-muscle="肱二头肌" class="muscle-path" d="
+    M78 156
+    C74 170 72 192 74 216
+    C78 230 86 236 92 232
+    C94 218 94 198 94 180
+    C94 166 90 158 86 152Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+  <!-- 肱二头肌 左 -->
+  <path data-muscle="肱二头肌" class="muscle-path" d="
+    M222 156
+    C226 170 228 192 226 216
+    C222 230 214 236 208 232
+    C206 218 206 198 206 180
+    C206 166 210 158 214 152Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+
+  <!-- 腹直肌 -->
+  <g data-muscle="腹直肌" class="muscle-path">
+    <rect x="140" y="222" width="14" height="22" rx="5" fill="url(#mfl)" filter="url(#ms)"/>
+    <rect x="146" y="222" width="14" height="22" rx="5" fill="url(#mfl)" filter="url(#ms)"/>
+    <rect x="140" y="248" width="14" height="22" rx="5" fill="url(#mf)" filter="url(#ms)"/>
+    <rect x="146" y="248" width="14" height="22" rx="5" fill="url(#mf)" filter="url(#ms)"/>
+    <rect x="140" y="274" width="14" height="22" rx="5" fill="url(#mfd)" filter="url(#ms)"/>
+    <rect x="146" y="274" width="14" height="22" rx="5" fill="url(#mfd)" filter="url(#ms)"/>
+    <rect x="140" y="300" width="14" height="24" rx="5" fill="url(#mfd)" filter="url(#ms)"/>
+    <rect x="146" y="300" width="14" height="24" rx="5" fill="url(#mfd)" filter="url(#ms)"/>
+    <!-- 腹白线 -->
+    <rect x="149" y="220" width="2" height="108" fill="#8a5828" opacity=".2" rx="1"/>
+  </g>
+
+  <!-- 腹外斜肌 右 -->
+  <g data-muscle="腹外斜肌" class="muscle-path">
+    <path d="M110 228 C106 244 106 264 110 284 C116 290 124 286 128 278 C124 260 122 240 120 224Z" fill="url(#mfv)" filter="url(#ms)"/>
+    <path d="M110 290 C108 308 110 328 114 348 C120 354 128 348 130 338 C126 318 122 298 118 282Z" fill="url(#mfv)" filter="url(#ms)"/>
+  </g>
+  <!-- 腹外斜肌 左 -->
+  <g data-muscle="腹外斜肌" class="muscle-path">
+    <path d="M190 228 C194 244 194 264 190 284 C184 290 176 286 172 278 C176 260 178 240 180 224Z" fill="url(#mfv)" filter="url(#ms)"/>
+    <path d="M190 290 C192 308 190 328 186 348 C180 354 172 348 170 338 C174 318 178 298 182 282Z" fill="url(#mfv)" filter="url(#ms)"/>
+  </g>
+
+  <!-- 前臂肌群 右 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M82 328
+    C78 348 74 372 74 396
+    C76 414 82 428 90 436
+    C96 440 102 434 104 424
+    C102 402 100 380 98 360
+    C96 344 90 334 86 328Z
+  " fill="url(#mfd)" filter="url(#ms)" opacity=".85"/>
+  <!-- 前臂肌群 左 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M218 328
+    C222 348 226 372 226 396
+    C224 414 218 428 210 436
+    C204 440 198 434 196 424
+    C198 402 200 380 202 360
+    C204 344 210 334 214 328Z
+  " fill="url(#mfd)" filter="url(#ms)" opacity=".85"/>
+
+  <!-- 股四头肌 右 -->
+  <path data-muscle="股四头肌" class="muscle-path" d="
+    M134 490
+    C128 510 126 536 128 564
+    C130 588 134 610 140 626
+    C146 632 152 626 154 618
+    C154 594 154 568 154 544
+    C154 524 154 508 154 494Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+  <!-- 股四头肌 左 -->
+  <path data-muscle="股四头肌" class="muscle-path" d="
+    M166 490
+    C172 510 174 536 172 564
+    C170 588 166 610 160 626
+    C154 632 148 626 146 618
+    C146 594 146 568 146 544
+    C146 524 146 508 146 494Z
+  " fill="url(#mf)" filter="url(#ms)"/>
+
+  <!-- 内收肌 右 -->
+  <path data-muscle="内收肌群" class="muscle-path" d="
+    M154 492
+    C152 512 148 540 146 570
+    C144 596 144 618 146 636
+    C148 640 152 636 154 628
+    C154 606 154 582 154 558
+    C154 536 154 516 154 498Z
+  " fill="url(#mfv)" filter="url(#ms)" opacity=".8"/>
+  <!-- 内收肌 左 -->
+  <path data-muscle="内收肌群" class="muscle-path" d="
+    M146 492
+    C148 512 152 540 154 570
+    C156 596 156 618 154 636
+    C152 640 148 636 146 628
+    C146 606 146 582 146 558
+    C146 536 146 516 146 498Z
+  " fill="url(#mfv)" filter="url(#ms)" opacity=".8"/>
+
+  <!-- 小腿肌群 右 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M134 666
+    C130 682 128 700 130 718
+    C132 728 136 734 142 736
+    C146 730 148 722 148 712
+    C148 696 146 680 144 668Z
+  " fill="url(#mfd)" filter="url(#ms)"/>
+  <!-- 小腿肌群 左 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M166 666
+    C170 682 172 700 170 718
+    C168 728 164 734 158 736
+    C154 730 152 722 152 712
+    C152 696 154 680 156 668Z
+  " fill="url(#mfd)" filter="url(#ms)"/>
+
+  <!-- 臀大肌(正面可见侧) 右 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M114 398
+    C108 414 108 432 114 446
+    C126 452 136 444 138 434
+    C134 418 126 406 116 400Z
+  " fill="url(#mfv)" filter="url(#ms)" opacity=".75"/>
+  <!-- 臀大肌 左 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M186 398
+    C192 414 192 432 186 446
+    C174 452 164 444 162 434
+    C166 418 174 406 184 400Z
+  " fill="url(#mfv)" filter="url(#ms)" opacity=".75"/>
+</g>
+</svg>`;
+        const SVG_BACK = `<svg viewBox="0 0 300 750" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+<defs>
+  <linearGradient id="sb" x1=".3" y1="0" x2=".8" y2="1"><stop offset="0%" stop-color="#f0d2b2"/><stop offset="100%" stop-color="#d8b490"/></linearGradient>
+  <linearGradient id="mb" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#e0a070"/><stop offset="100%" stop-color="#b87844"/></linearGradient>
+  <linearGradient id="mbl" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#eab080"/><stop offset="100%" stop-color="#c48854"/></linearGradient>
+  <linearGradient id="mbd" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#d09262"/><stop offset="100%" stop-color="#9e6834"/></linearGradient>
+  <linearGradient id="mbv" x1=".2" y1="0" x2=".9" y2="1"><stop offset="0%" stop-color="#c48856"/><stop offset="100%" stop-color="#8e5828"/></linearGradient>
+  <radialGradient id="hlb" cx=".5" cy=".3" r=".65"><stop offset="0%" stop-color="#fff5e0" stop-opacity=".4"/><stop offset="100%" stop-color="#fff5e0" stop-opacity="0"/></radialGradient>
+  <filter id="msb"><feDropShadow dx="0" dy="1.2" stdDeviation=".8" flood-color="#5a3418" flood-opacity=".22"/></filter>
+</defs>
+
+<!-- 身体轮廓(背面) -->
+<g id="body-outline-back">
+  <ellipse cx="150" cy="46" rx="27" ry="32" fill="url(#sb)"/>
+  <ellipse cx="123" cy="48" rx="4" ry="7" fill="#d0a87e"/>
+  <ellipse cx="177" cy="48" rx="4" ry="7" fill="#d0a87e"/>
+  <path d="M128 68 Q150 80 172 68 Q162 76 150 78 Q138 76 128 68Z" fill="#d0a87e"/>
+  <path d="M137 80 L135 100 Q150 106 165 100 L163 80Z" fill="url(#sb)"/>
+
+  <!-- 躯干背 -->
+  <path d="
+    M94 124
+    C84 134 80 152 80 172
+    C80 202 84 232 90 258
+    C94 276 96 294 94 314
+    C90 336 90 358 96 378
+    C100 392 106 400 112 406
+    L112 406
+    C110 424 112 444 118 460
+    C124 472 132 480 140 486
+    L140 486
+    C136 504 134 524 136 546
+    C138 562 142 578 148 592
+    L148 592
+    Q140 612 136 638
+    Q134 664 136 688
+    L136 688
+    C134 700 134 714 138 726
+    L138 738
+    Q140 744 144 746
+    L150 746
+    C154 744 156 738 156 732
+    L156 716
+    Q158 694 156 672
+    L156 672
+    Q154 650 154 630
+    L154 594
+    L154 592
+    Q160 578 164 562
+    C166 546 166 528 162 510
+    L162 486
+    C170 480 178 472 184 460
+    C190 444 192 424 190 406
+    L190 406
+    C196 400 202 392 206 378
+    C212 358 212 336 208 314
+    C206 294 208 276 212 258
+    C218 232 222 202 222 172
+    C222 152 218 134 208 124
+    Z
+  " fill="url(#sb)"/>
+
+  <!-- 右臂 -->
+  <path d="M94 124 C84 128 76 138 72 154 C66 178 64 206 66 234 C68 258 74 278 82 294 C86 302 90 308 94 310 C98 306 100 298 100 290 C98 268 96 244 96 220 C96 198 96 176 98 156 C98 142 96 132 94 124Z" fill="url(#sb)"/>
+  <!-- 左臂 -->
+  <path d="M206 124 C216 128 224 138 228 154 C234 178 236 206 234 234 C232 258 226 278 218 294 C214 302 210 308 206 310 C202 306 200 298 200 290 C202 268 204 244 204 220 C204 198 204 176 202 156 C202 142 204 132 206 124Z" fill="url(#sb)"/>
+  <!-- 右前臂 -->
+  <path d="M94 310 C88 322 82 340 78 360 C74 382 72 404 74 424 C76 440 82 452 90 460 C96 464 102 460 106 452 C104 432 104 410 102 388 C100 368 98 348 96 332Z" fill="url(#sb)"/>
+  <!-- 左前臂 -->
+  <path d="M206 310 C212 322 218 340 222 360 C226 382 228 404 226 424 C224 440 218 452 210 460 C204 464 198 460 194 452 C196 432 196 410 198 388 C200 368 202 348 204 332Z" fill="url(#sb)"/>
+  <ellipse cx="88" cy="466" rx="10" ry="14" fill="#d0a87e"/>
+  <ellipse cx="212" cy="466" rx="10" ry="14" fill="#d0a87e"/>
+</g>
+
+<ellipse cx="150" cy="260" rx="46" ry="140" fill="url(#hlb)" opacity=".55"/>
+
+<!-- 肌肉层(背面) -->
+<g id="muscles-back">
+  <!-- 斜方肌(大菱形) -->
+  <path data-muscle="斜方肌" class="muscle-path" d="
+    M150 98
+    C130 102 108 116 94 138
+    C112 142 134 138 150 134
+    C166 138 188 142 206 138
+    C192 116 170 102 150 98Z
+  " fill="url(#mbv)" filter="url(#msb)"/>
+  <!-- 斜方肌(中下) -->
+  <path data-muscle="斜方肌" class="muscle-path" d="
+    M100 186
+    C120 170 140 164 150 162
+    C160 164 180 170 200 186
+    C190 210 172 222 150 218
+    C128 222 110 210 100 186Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".9"/>
+
+  <!-- 三角肌后束 右 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M94 138
+    C86 146 80 162 80 180
+    C84 194 92 200 98 194
+    C100 178 100 160 100 146Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 三角肌后束 左 -->
+  <path data-muscle="三角肌" class="muscle-path" d="
+    M206 138
+    C214 146 220 162 220 180
+    C216 194 208 200 202 194
+    C200 178 200 160 200 146Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 背阔肌 右 -->
+  <path data-muscle="背阔肌" class="muscle-path" d="
+    M98 218
+    C90 240 86 270 88 304
+    C98 322 118 326 136 312
+    C140 290 138 264 134 244
+    C128 232 114 224 100 218Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+  <!-- 背阔肌 左 -->
+  <path data-muscle="背阔肌" class="muscle-path" d="
+    M202 218
+    C210 240 214 270 212 304
+    C202 322 182 326 164 312
+    C160 290 162 264 166 244
+    C172 232 186 224 200 218Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+
+  <!-- 中背部(菱形肌) -->
+  <path data-muscle="中背部" class="muscle-path" d="
+    M130 218
+    C140 210 146 208 150 208
+    C154 208 160 210 170 218
+    C168 242 160 258 150 262
+    C140 258 132 242 130 218Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 下背部(竖脊肌) -->
+  <g data-muscle="下背部" class="muscle-path">
+    <path d="M140 310 C138 340 138 368 140 394 C144 404 150 406 152 398 C152 370 152 342 150 314Z" fill="url(#mbd)" filter="url(#msb)"/>
+    <path d="M160 310 C162 340 162 368 160 394 C156 404 150 406 148 398 C148 370 148 342 150 314Z" fill="url(#mbd)" filter="url(#msb)"/>
+  </g>
+
+  <!-- 肱三头肌 右 -->
+  <path data-muscle="肱三头肌" class="muscle-path" d="
+    M74 162
+    C70 178 68 202 70 228
+    C76 238 86 240 92 234
+    C92 214 90 194 90 176
+    C90 166 86 160 82 156Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 肱三头肌 左 -->
+  <path data-muscle="肱三头肌" class="muscle-path" d="
+    M226 162
+    C230 178 232 202 230 228
+    C224 238 214 240 208 234
+    C208 214 210 194 210 176
+    C210 166 214 160 218 156Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 前臂伸肌 右 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M84 326
+    C80 346 76 370 76 394
+    C80 410 90 416 96 408
+    C96 386 96 364 98 346
+    C96 336 90 330 86 326Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".85"/>
+  <!-- 前臂伸肌 左 -->
+  <path data-muscle="前臂肌群" class="muscle-path" d="
+    M216 326
+    C220 346 224 370 224 394
+    C220 410 210 416 204 408
+    C204 386 204 364 202 346
+    C204 336 210 330 214 326Z
+  " fill="url(#mbd)" filter="url(#msb)" opacity=".85"/>
+
+  <!-- 臀大肌 右 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M118 448
+    C110 464 108 486 114 504
+    C132 512 148 502 152 488
+    C148 472 138 458 124 450Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+  <!-- 臀大肌 左 -->
+  <path data-muscle="臀大肌" class="muscle-path" d="
+    M182 448
+    C190 464 192 486 186 504
+    C168 512 152 502 148 488
+    C152 472 162 458 176 450Z
+  " fill="url(#mbd)" filter="url(#msb)"/>
+
+  <!-- 腘绳肌 右 -->
+  <path data-muscle="腘绳肌" class="muscle-path" d="
+    M140 530
+    C136 552 134 578 134 606
+    C136 630 140 650 146 664
+    C150 668 154 662 154 652
+    C154 626 154 600 154 576
+    C154 556 154 540 154 528Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 腘绳肌 左 -->
+  <path data-muscle="腘绳肌" class="muscle-path" d="
+    M160 530
+    C164 552 166 578 166 606
+    C164 630 160 650 154 664
+    C150 668 146 662 146 652
+    C146 626 146 600 146 576
+    C146 556 146 540 146 528Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+
+  <!-- 小腿肌群(腓肠肌) 右 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M136 688
+    C132 704 130 720 132 732
+    C134 738 140 740 144 736
+    C146 726 146 714 146 700
+    C146 694 142 690 138 688Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <ellipse data-muscle="小腿肌群" class="muscle-path" cx="140" cy="704" rx="9" ry="12" fill="url(#mb)" filter="url(#msb)"/>
+  <!-- 小腿肌群 左 -->
+  <path data-muscle="小腿肌群" class="muscle-path" d="
+    M164 688
+    C168 704 170 720 168 732
+    C166 738 160 740 156 736
+    C154 726 154 714 154 700
+    C154 694 158 690 162 688Z
+  " fill="url(#mb)" filter="url(#msb)"/>
+  <ellipse data-muscle="小腿肌群" class="muscle-path" cx="160" cy="704" rx="9" ry="12" fill="url(#mb)" filter="url(#msb)"/>
+</g>
+</svg>`;
+
+
+        // ============ 方案二：2D肌肉SVG + CSS 3D交互 ============
+        // currentView 已在上方声明
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let cardRotX = 0;
+        let cardRotY = 0;
+        let targetRotX = 0;
+        let targetRotY = 0;
+        let startRotX = 0;
+        let startRotY = 0;
+        let autoRotate = true;
+        let autoRotDir = 1;
+        let selectedMuscleName = null;
+        let lastViewToggleClick = 0;
+        
+        function init3DBody() {
+            // 使用GLB 3D模型查看器（由module脚本定义）
+            if (window.initGLBViewer) {
+                window.initGLBViewer();
+                return;
+            }
+            const container = document.getElementById('body-3d-container');
+            if (!container) return;
+
+            // 清空容器
+            container.innerHTML = '';
+            
+            // 创建结构
+            container.innerHTML = `
+                <div class="corner-glow tl"></div>
+                <div class="corner-glow br"></div>
+                <div class="view-toggle">
+                    <button class="active" data-view="front">● 正面</button>
+                    <button data-view="back">● 背面</button>
+                </div>
+                <div class="body-card" id="body-card">
+                    <div class="body-face front" id="face-front"></div>
+                    <div class="body-face back" id="face-back"></div>
+                </div>
+                <div class="controls-hint">🖱️ 拖动旋转视角 · 切换正/背面 · 点击肌肉选择</div>
+            `;
+            
+            // 注入SVG
+            document.getElementById('face-front').innerHTML = SVG_FRONT;
+            document.getElementById('face-back').innerHTML = SVG_BACK;
+            
+            const card = document.getElementById('body-card');
+            const tooltip = document.getElementById('muscle-tooltip');
+            
+            // 视图切换按钮
+            document.querySelectorAll('.view-toggle button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const view = btn.dataset.view;
+                    if (view === currentView) return;
+                    currentView = view;
+                    autoRotate = false;
+                    
+                    document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // 翻转动画
+                    if (view === 'back') {
+                        targetRotY = 180;
+                    } else {
+                        targetRotY = 0;
+                    }
+                    // 重置X方向
+                    targetRotX = 0;
+                    lastViewToggleClick = Date.now();
+                });
+            });
+            
+            // ====== 肌肉交互：正面 ======
+            bindMuscleEvents('#face-front', tooltip);
+            
+            // ====== 肌肉交互：背面 ======
+            bindMuscleEvents('#face-back', tooltip);
+            
+            // ====== 拖动旋转 ======
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.view-toggle') || e.target.closest('.view-toggle button')) return;
+                if (e.target.closest('.muscle-path')) return; // 点肌肉时不拖动
+                isDragging = true;
+                autoRotate = false;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                startRotX = targetRotX;
+                startRotY = targetRotY;
+            });
+            
+            let dragStartY = 0;
+            let startRotX = 0;
+            let startRotY = 0;
+            
+            window.addEventListener('mousemove', (e) => {
+                const tooltip = document.getElementById('muscle-tooltip');
+                if (isDragging) {
+                    const dx = e.clientX - dragStartX;
+                    const dy = e.clientY - dragStartY;
+                    // 如果是正面视角，拖动方向正常；背面视角则反向
+                    const flip = currentView === 'back' ? -1 : 1;
+                    targetRotY = startRotY + flip * dx * 0.4;
+                    targetRotX = Math.max(-25, Math.min(25, startRotX - dy * 0.25));
+                }
+            });
+            
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    // 1.5秒后如果没操作，恢复自转
+                    setTimeout(() => {
+                        if (!isDragging) autoRotate = true;
+                    }, 2500);
+                }
+            });
+            
+            // 鼠标离开容器
+            container.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('visible');
+                // 悬停样式恢复
+                if (!selectedMuscleName) {
+                    document.querySelectorAll('.muscle-path.muscle-hover').forEach(el => el.classList.remove('muscle-hover'));
+                } else {
+                    document.querySelectorAll('.muscle-path').forEach(el => {
+                        if (el.dataset.muscle !== selectedMuscleName) {
+                            el.classList.remove('muscle-hover');
+                        }
+                    });
+                }
+            });
+            
+            // ====== 动画循环 ======
+            function tick() {
+                if (autoRotate && !isDragging) {
+                    // 微小的自转，让图有呼吸感
+                    if (currentView === 'front') {
+                        targetRotY += 0.08 * autoRotDir;
+                        if (targetRotY > 12) autoRotDir = -1;
+                        if (targetRotY < -12) autoRotDir = 1;
+                    } else {
+                        // 背面基准180度
+                        const baseOffset = targetRotY - 180;
+                        targetRotY = 180 + baseOffset + 0.08 * autoRotDir;
+                        if (baseOffset > 12) autoRotDir = -1;
+                        if (baseOffset < -12) autoRotDir = 1;
+                    }
+                }
+                
+                // 平滑插值
+                cardRotX += (targetRotX - cardRotX) * 0.12;
+                cardRotY += (targetRotY - cardRotY) * 0.12;
+                
+                card.style.transform = `rotateX(${cardRotX}deg) rotateY(${cardRotY}deg)`;
+                
+                requestAnimationFrame(tick);
+            }
+            tick();
+        }
+        
+        function bindMuscleEvents(faceSelector, tooltip) {
+            const face = document.querySelector(faceSelector);
+            if (!face) return;
+            
+            const allMuscles = face.querySelectorAll('[data-muscle]');
+            
+            allMuscles.forEach(el => {
+                el.addEventListener('mouseenter', (e) => {
+                    const name = el.dataset.muscle;
+                    
+                    // 同组所有肌肉一起高亮
+                    document.querySelectorAll(`${faceSelector} [data-muscle="${name}"]`).forEach(m => {
+                        if (m.dataset.muscle !== selectedMuscleName) {
+                            m.classList.add('muscle-hover');
+                        }
+                    });
+                    
+                    document.body.style.cursor = 'pointer';
+                });
+                
+                el.addEventListener('mouseleave', (e) => {
+                    const name = el.dataset.muscle;
+                    if (name !== selectedMuscleName) {
+                        document.querySelectorAll(`${faceSelector} [data-muscle="${name}"]`).forEach(m => {
+                            m.classList.remove('muscle-hover');
+                        });
+                    }
+                    document.body.style.cursor = 'default';
+                });
+                
+                el.addEventListener('mousemove', (e) => {
+                    tooltip.textContent = el.dataset.muscle;
+                    tooltip.style.left = e.clientX + 'px';
+                    tooltip.style.top = (e.clientY - 14) + 'px';
+                    tooltip.classList.add('visible');
+                });
+                
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = el.dataset.muscle;
+                    selectMuscleByName(name);
+                });
+            });
+        }
+        
+        function selectMuscleByName(name) {
+            // 清除之前选中的
+            if (selectedMuscleName) {
+                document.querySelectorAll(`[data-muscle="${selectedMuscleName}"]`).forEach(m => {
+                    m.classList.remove('muscle-selected');
+                });
+            }
+            
+            selectedMuscleName = name;
+            
+            // 选中高亮（正背面都亮）
+            document.querySelectorAll(`[data-muscle="${name}"]`).forEach(m => {
+                m.classList.add('muscle-selected');
+                m.classList.remove('muscle-hover');
+            });
+            
+            // 调用原有API
+            selectMuscle(name, null);
+        }
+
+
+        // 页面加载完成后初始化3D人体
+        window.addEventListener('load', function() {
+            setTimeout(init3DBody, 500);
+        });
+
+</script>
+
+<!-- Three.js importmap for ES module loading -->
+<script type="importmap">
+{
+    "imports": {
+        "three": "./libs/three.module.js",
+        "three/addons/": "./libs/"
+    }
+}
+</script>
+
+<!-- 3D GLB Viewer Module -->
+<script type="module" src="viewer3d.js?v=10"></script>
+</body>
+</html>

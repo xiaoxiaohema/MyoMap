@@ -1,0 +1,330 @@
+{
+  "pull up": {
+    "name": "archer pull up",
+    "id": "3293",
+    "gif_url": "videos/3293-72BC5Za.gif",
+    "image": "images/3293-72BC5Za.jpg",
+    "category": "back",
+    "target": "lats"
+  },
+  "push up": {
+    "name": "archer push up",
+    "id": "3294",
+    "gif_url": "videos/3294-A9qxk2F.gif",
+    "image": "images/3294-A9qxk2F.jpg",
+    "category": "chest",
+    "target": "pectorals"
+  },
+  "leg raise": {
+    "name": "assisted lying leg raise with lateral throw down",
+    "id": "0012",
+    "gif_url": "videos/0012-UGhRD1A.gif",
+    "image": "images/0012-UGhRD1A.jpg",
+    "category": "waist",
+    "target": "abs"
+  },
+  "russian twist": {
+    "name": "assisted motion russian twist",
+    "id": "0014",
+    "gif_url": "videos/0014-r7cT9YD.gif",
+    "image": "images/0014-r7cT9YD.jpg",
+    "category": "waist",
+    "target": "abs"
+  },
+  "back extension": {
+    "name": "back extension on exercise ball",
+    "id": "1314",
+    "gif_url": "videos/1314-qLpO4vV.gif",
+    "image": "images/1314-qLpO4vV.jpg",
+    "category": "back",
+    "target": "spine"
+  },
+  "crunch": {
+    "name": "band bicycle crunch",
+    "id": "0972",
+    "gif_url": "videos/0972-tZkGYZ9.gif",
+    "image": "images/0972-tZkGYZ9.jpg",
+    "category": "waist",
+    "target": "abs"
+  },
+  "reverse fly": {
+    "name": "band reverse fly",
+    "id": "0993",
+    "gif_url": "videos/0993-sTfvVsG.gif",
+    "image": "images/0993-sTfvVsG.jpg",
+    "category": "shoulders",
+    "target": "delts"
+  },
+  "wrist curl": {
+    "name": "band reverse wrist curl",
+    "id": "0994",
+    "gif_url": "videos/0994-Ezpnw9d.gif",
+    "image": "images/0994-Ezpnw9d.jpg",
+    "category": "lower arms",
+    "target": "forearms"
+  },
+  "reverse wrist curl": {
+    "name": "band reverse wrist curl",
+    "id": "0994",
+    "gif_url": "videos/0994-Ezpnw9d.gif",
+    "image": "images/0994-Ezpnw9d.jpg",
+    "category": "lower arms",
+    "target": "forearms"
+  },
+  "single leg calf raise": {
+    "name": "band single leg calf raise",
+    "id": "0999",
+    "gif_url": "videos/0999-9JprnPh.gif",
+    "image": "images/0999-9JprnPh.jpg",
+    "category": "lower legs",
+    "target": "calves"
+  },
+  "deadlift": {
+    "name": "band stiff leg deadlift",
+    "id": "1009",
+    "gif_url": "videos/1009-kuMiR2T.gif",
+    "image": "images/1009-kuMiR2T.jpg",
+    "category": "upper legs",
+    "target": "glutes"
+  },
+  "front squat": {
+    "name": "barbell bench front squat",
+    "id": "0024",
+    "gif_url": "videos/0024-Y7YcmIJ.gif",
+    "image": "images/0024-Y7YcmIJ.jpg",
+    "category": "upper legs",
+    "target": "quads"
+  },
+  "barbell bench press": {
+    "name": "barbell bench press",
+    "id": "0025",
+    "gif_url": "videos/0025-EIeI8Vf.gif",
+    "image": "images/0025-EIeI8Vf.jpg",
+    "category": "chest",
+    "target": "pectorals"
+  },
+  "close-grip bench press": {
+    "name": "barbell close-grip bench press",
+    "id": "0030",
+    "gif_url": "videos/0030-J6Dx1Mu.gif",
+    "image": "images/0030-J6Dx1Mu.jpg",
+    "category": "upper arms",
+    "target": "triceps"
+  },
+  "barbell curl": {
+    "name": "barbell curl",
+    "id": "0031",
+    "gif_url": "videos/0031-25GPyDY.gif",
+    "image": "images/0031-25GPyDY.jpg",
+    "category": "upper arms",
+    "target": "biceps"
+  },
+  "barbell front raise": {
+    "name": "barbell front raise",
+    "id": "0041",
+    "gif_url": "videos/0041-b2Uoz54.gif",
+    "image": "images/0041-b2Uoz54.jpg",
+    "category": "shoulders",
+    "target": "delts"
+  },
+  "glute bridge": {
+    "name": "barbell glute bridge",
+    "id": "1409",
+    "gif_url": "videos/1409-qKBpF7I.gif",
+    "image": "images/1409-qKBpF7I.jpg",
+    "category": "upper legs",
+    "target": "glutes"
+  },
+  "good morning": {
+    "name": "barbell good morning",
+    "id": "0044",
+    "gif_url": "videos/0044-XlZ4lAC.gif",
+    "image": "images/0044-XlZ4lAC.jpg",
+    "category": "upper legs",
+    "target": "hamstrings"
+  },
+  "incline bench press": {
+    "name": "barbell incline bench press",
+    "id": "0047",
+    "gif_url": "videos/0047-3TZduzM.gif",
+    "image": "images/0047-3TZduzM.jpg",
+    "category": "chest",
+    "target": "pectorals"
+  },
+  "lunge": {
+    "name": "barbell lateral lunge",
+    "id": "1410",
+    "gif_url": "videos/1410-py1HSzx.gif",
+    "image": "images/1410-py1HSzx.jpg",
+    "category": "upper legs",
+    "target": "glutes"
+  },
+  "preacher curl": {
+    "name": "barbell lying preacher curl",
+    "id": "0059",
+    "gif_url": "videos/0059-SYJ4Bkt.gif",
+    "image": "images/0059-SYJ4Bkt.jpg",
+    "category": "upper arms",
+    "target": "biceps"
+  },
+  "romanian deadlift": {
+    "name": "barbell romanian deadlift",
+    "id": "0085",
+    "gif_url": "videos/0085-wQ2c4XD.gif",
+    "image": "images/0085-wQ2c4XD.jpg",
+    "category": "upper legs",
+    "target": "glutes"
+  },
+  "seated calf raise": {
+    "name": "barbell seated calf raise",
+    "id": "0088",
+    "gif_url": "videos/0088-ktsFQAZ.gif",
+    "image": "images/0088-ktsFQAZ.jpg",
+    "category": "lower legs",
+    "target": "calves"
+  },
+  "barbell shrug": {
+    "name": "barbell shrug",
+    "id": "0095",
+    "gif_url": "videos/0095-dG7tG5y.gif",
+    "image": "images/0095-dG7tG5y.jpg",
+    "category": "back",
+    "target": "traps"
+  },
+  "barbell squat": {
+    "name": "barbell squat (on knees)",
+    "id": "0102",
+    "gif_url": "videos/0102-oR7O9LW.gif",
+    "image": "images/0102-oR7O9LW.jpg",
+    "category": "upper legs",
+    "target": "quads"
+  },
+  "standing calf raise": {
+    "name": "barbell standing calf raise",
+    "id": "1372",
+    "gif_url": "videos/1372-8ozhUIZ.gif",
+    "image": "images/1372-8ozhUIZ.jpg",
+    "category": "lower legs",
+    "target": "calves"
+  },
+  "plank": {
+    "name": "bodyweight incline side plank",
+    "id": "3544",
+    "gif_url": "videos/3544-5VXmnV5.gif",
+    "image": "images/3544-5VXmnV5.jpg",
+    "category": "waist",
+    "target": "abs"
+  },
+  "leg curl": {
+    "name": "cable assisted inverse leg curl",
+    "id": "3235",
+    "gif_url": "videos/3235-zHEpuuc.gif",
+    "image": "images/3235-zHEpuuc.jpg",
+    "category": "upper legs",
+    "target": "hamstrings"
+  },
+  "hammer curl": {
+    "name": "cable hammer curl (with rope)",
+    "id": "0165",
+    "gif_url": "videos/0165-HPlPoQA.gif",
+    "image": "images/0165-HPlPoQA.jpg",
+    "category": "upper arms",
+    "target": "biceps"
+  },
+  "overhead tricep extension": {
+    "name": "cable high pulley overhead tricep extension",
+    "id": "1722",
+    "gif_url": "videos/1722-1xHyxys.gif",
+    "image": "images/1722-1xHyxys.jpg",
+    "category": "upper arms",
+    "target": "triceps"
+  },
+  "lat pulldown": {
+    "name": "cable lat pulldown full range of motion",
+    "id": "2330",
+    "gif_url": "videos/2330-LEprlgG.gif",
+    "image": "images/2330-LEprlgG.jpg",
+    "category": "back",
+    "target": "lats"
+  },
+  "cable pushdown": {
+    "name": "cable pushdown",
+    "id": "0201",
+    "gif_url": "videos/0201-3ZflifB.gif",
+    "image": "images/0201-3ZflifB.jpg",
+    "category": "upper arms",
+    "target": "triceps"
+  },
+  "side crunch": {
+    "name": "cable side crunch",
+    "id": "0223",
+    "gif_url": "videos/0223-q2ADGqV.gif",
+    "image": "images/0223-q2ADGqV.jpg",
+    "category": "waist",
+    "target": "abs"
+  },
+  "dumbbell fly": {
+    "name": "dumbbell fly",
+    "id": "0308",
+    "gif_url": "videos/0308-yz9nUhF.gif",
+    "image": "images/0308-yz9nUhF.jpg",
+    "category": "chest",
+    "target": "pectorals"
+  },
+  "dumbbell front raise": {
+    "name": "dumbbell front raise",
+    "id": "0310",
+    "gif_url": "videos/0310-3eGE2JC.gif",
+    "image": "images/0310-3eGE2JC.jpg",
+    "category": "shoulders",
+    "target": "delts"
+  },
+  "dumbbell shrug": {
+    "name": "dumbbell shrug",
+    "id": "0406",
+    "gif_url": "videos/0406-NJzBsGJ.gif",
+    "image": "images/0406-NJzBsGJ.jpg",
+    "category": "back",
+    "target": "traps"
+  },
+  "leg press": {
+    "name": "lever alternate leg press",
+    "id": "2287",
+    "gif_url": "videos/2287-V07qpXy.gif",
+    "image": "images/2287-V07qpXy.jpg",
+    "category": "upper legs",
+    "target": "quads"
+  },
+  "leg extension": {
+    "name": "lever leg extension",
+    "id": "0585",
+    "gif_url": "videos/0585-my33uHU.gif",
+    "image": "images/0585-my33uHU.jpg",
+    "category": "upper legs",
+    "target": "quads"
+  },
+  "t-bar row": {
+    "name": "lever reverse t-bar row",
+    "id": "1349",
+    "gif_url": "videos/1349-BgljGjd.gif",
+    "image": "images/1349-BgljGjd.jpg",
+    "category": "back",
+    "target": "upper back"
+  },
+  "hip thrust": {
+    "name": "resistance band hip thrusts on knees (female)",
+    "id": "3236",
+    "gif_url": "videos/3236-Pjbc0Kt.gif",
+    "image": "images/3236-Pjbc0Kt.jpg",
+    "category": "upper legs",
+    "target": "glutes"
+  },
+  "cable crunch": {
+    "name": "run",
+    "id": "0685",
+    "gif_url": "videos/0685-oLrKqDH.gif",
+    "image": "images/0685-oLrKqDH.jpg",
+    "category": "cardio",
+    "target": "cardiovascular system"
+  }
+}
